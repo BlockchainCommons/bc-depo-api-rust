@@ -18,12 +18,12 @@ pub struct UpdateRecoveryRequest {
 
 impl UpdateRecoveryRequest {
     pub fn new(
-        key: PublicKeyBase,
+        key: impl AsRef<PublicKeyBase>,
         recovery: Option<&str>,
     ) -> Self {
         Self::new_opt(
             ARID::new(),
-            key,
+            key.as_ref().clone(),
             recovery.map(|s| s.to_string()),
         )
     }

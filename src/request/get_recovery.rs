@@ -81,8 +81,8 @@ impl GetRecoveryResponse {
         &self.id
     }
 
-    pub fn recovery(&self) -> Option<&String> {
-        self.recovery.as_ref()
+    pub fn recovery(&self) -> Option<&str> {
+        self.recovery.as_deref()
     }
 }
 

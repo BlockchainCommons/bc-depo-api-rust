@@ -112,8 +112,8 @@ impl GetSharesResponse {
         &self.receipt_to_data
     }
 
-    pub fn data_for_receipt(&self, receipt: &Receipt) -> Option<&Bytes> {
-        self.receipt_to_data.get(receipt)
+    pub fn data_for_receipt(&self, receipt: &Receipt) -> Option<Bytes> {
+        self.receipt_to_data.get(receipt).cloned()
     }
 }
 

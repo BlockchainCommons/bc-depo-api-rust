@@ -17,11 +17,11 @@ pub struct FinishRecoveryRequest {
 }
 
 impl FinishRecoveryRequest {
-    pub fn new(key: impl AsRef<PublicKeyBase>, continuation: impl AsRef<Envelope>) -> Self {
+    pub fn new(key: impl AsRef<PublicKeyBase>, continuation: Envelope) -> Self {
         Self::new_opt(
             ARID::new(),
             key.as_ref().clone(),
-            continuation.as_ref().clone(),
+            continuation,
         )
     }
 

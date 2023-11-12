@@ -1,7 +1,7 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 
-use crate::{NEW_KEY_PARAM, RECOVERY_METHOD_PARAM, START_RECOVERY_FUNCTION};
+use crate::{RECOVERY_METHOD_PARAM, START_RECOVERY_FUNCTION};
 
 use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
@@ -14,29 +14,25 @@ pub struct StartRecoveryRequest {
     id: ARID,
     key: PublicKeyBase,
     recovery: String,
-    new_key: PublicKeyBase,
 }
 
 impl StartRecoveryRequest {
     pub fn new(
         key: impl AsRef<PublicKeyBase>,
         recovery: impl AsRef<str>,
-        new_key: impl AsRef<PublicKeyBase>,
     ) -> Self {
         Self::new_opt(
             ARID::new(),
             key.as_ref().clone(),
             recovery.as_ref().to_string(),
-            new_key.as_ref().clone(),
         )
     }
 
-    pub fn new_opt(id: ARID, key: PublicKeyBase, recovery: String, new_key: PublicKeyBase) -> Self {
+    pub fn new_opt(id: ARID, key: PublicKeyBase, recovery: String) -> Self {
         Self {
             id,
             key,
             recovery,
-            new_key,
         }
     }
 
@@ -51,17 +47,12 @@ impl StartRecoveryRequest {
     pub fn recovery(&self) -> &str {
         self.recovery.as_ref()
     }
-
-    pub fn new_key(&self) -> &PublicKeyBase {
-        &self.new_key
-    }
 }
 
 impl EnvelopeEncodable for StartRecoveryRequest {
     fn envelope(self) -> Envelope {
         let body = request_body(START_RECOVERY_FUNCTION, self.key)
-            .add_parameter(RECOVERY_METHOD_PARAM, self.recovery)
-            .add_parameter(NEW_KEY_PARAM, self.new_key);
+            .add_parameter(RECOVERY_METHOD_PARAM, self.recovery);
         request_envelope(self.id, body)
     }
 }
@@ -76,8 +67,7 @@ impl EnvelopeDecodable for StartRecoveryRequest {
     fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
         let (id, key, body) = parse_request(START_RECOVERY_FUNCTION, envelope)?;
         let recovery: String = body.extract_object_for_parameter(RECOVERY_METHOD_PARAM)?;
-        let new_key: PublicKeyBase = body.extract_object_for_parameter(NEW_KEY_PARAM)?;
-        Ok(Self::new_opt(id, key, recovery, new_key))
+        Ok(Self::new_opt(id, key, recovery))
     }
 }
 
@@ -110,8 +100,8 @@ impl StartRecoveryResponse {
         self.id.as_ref()
     }
 
-    pub fn continuation(&self) -> &Envelope {
-        &self.continuation
+    pub fn continuation(&self) -> Envelope {
+        self.continuation.clone()
     }
 }
 
@@ -171,13 +161,10 @@ mod tests {
 
     #[test]
     fn test_request() {
-        let private_key = PrivateKeyBase::new();
-        let key = private_key.public_keys();
-
         let recovery = "recovery".to_string();
         let new_key = PrivateKeyBase::new().public_keys();
 
-        let request = StartRecoveryRequest::new_opt(id(), key, recovery, new_key);
+        let request = StartRecoveryRequest::new_opt(id(), new_key, recovery);
         let request_envelope = request.clone().envelope();
         assert_eq!(
             request_envelope.format(),
@@ -185,7 +172,6 @@ mod tests {
         request(ARID(8712dfac)) [
             'body': «"startRecovery"» [
                 ❰"key"❱: PublicKeyBase
-                ❰"newKey"❱: PublicKeyBase
                 ❰"recoveryMethod"❱: "recovery"
             ]
         ]

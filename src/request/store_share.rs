@@ -97,8 +97,8 @@ impl StoreShareResponse {
         self.id.as_ref()
     }
 
-    pub fn receipt(&self) -> &Receipt {
-        &self.receipt
+    pub fn receipt(&self) -> Receipt {
+        self.receipt.clone()
     }
 }
 
