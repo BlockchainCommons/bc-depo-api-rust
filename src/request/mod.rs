@@ -4,8 +4,10 @@ use bc_envelope::prelude::*;
 use crate::KEY_PARAM;
 
 pub mod delete_account;
-pub mod get_recovery;
 pub use delete_account::{DeleteAccountRequest, DeleteAccountResponse};
+
+pub mod get_recovery;
+pub use get_recovery::{GetRecoveryRequest, GetRecoveryResponse};
 
 pub mod delete_shares;
 pub use delete_shares::{DeleteSharesRequest, DeleteSharesResponse};

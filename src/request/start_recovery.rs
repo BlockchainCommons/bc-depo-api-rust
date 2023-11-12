@@ -1,9 +1,9 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 
-use crate::{START_RECOVERY_FUNCTION, RECOVERY_METHOD_PARAM, NEW_KEY_PARAM};
+use crate::{NEW_KEY_PARAM, RECOVERY_METHOD_PARAM, START_RECOVERY_FUNCTION};
 
-use super::{request_body, request_envelope, parse_request, response_envelope, parse_response};
+use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
 //
 // Request
@@ -19,11 +19,19 @@ pub struct StartRecoveryRequest {
 
 impl StartRecoveryRequest {
     pub fn new(
-        id: ARID,
-        key: PublicKeyBase,
-        recovery: String,
-        new_key: PublicKeyBase,
+        key: impl AsRef<PublicKeyBase>,
+        recovery: impl AsRef<str>,
+        new_key: impl AsRef<PublicKeyBase>,
     ) -> Self {
+        Self::new_opt(
+            ARID::new(),
+            key.as_ref().clone(),
+            recovery.as_ref().to_string(),
+            new_key.as_ref().clone(),
+        )
+    }
+
+    pub fn new_opt(id: ARID, key: PublicKeyBase, recovery: String, new_key: PublicKeyBase) -> Self {
         Self {
             id,
             key,
@@ -69,7 +77,7 @@ impl EnvelopeDecodable for StartRecoveryRequest {
         let (id, key, body) = parse_request(START_RECOVERY_FUNCTION, envelope)?;
         let recovery: String = body.extract_object_for_parameter(RECOVERY_METHOD_PARAM)?;
         let new_key: PublicKeyBase = body.extract_object_for_parameter(NEW_KEY_PARAM)?;
-        Ok(Self::new(id, key, recovery, new_key))
+        Ok(Self::new_opt(id, key, recovery, new_key))
     }
 }
 
@@ -87,7 +95,6 @@ impl EnvelopeCodable for StartRecoveryRequest {}
 // Response
 //
 
-
 #[derive(Debug, Clone)]
 pub struct StartRecoveryResponse {
     id: ARID,
@@ -95,14 +102,8 @@ pub struct StartRecoveryResponse {
 }
 
 impl StartRecoveryResponse {
-    pub fn new(
-        id: ARID,
-        continuation: Envelope,
-    ) -> Self {
-        Self {
-            id,
-            continuation,
-        }
+    pub fn new(id: ARID, continuation: Envelope) -> Self {
+        Self { id, continuation }
     }
 
     pub fn id(&self) -> &ARID {
@@ -146,7 +147,9 @@ impl EnvelopeCodable for StartRecoveryResponse {}
 impl PartialEq for StartRecoveryResponse {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
-            && self.continuation.is_identical_to(other.continuation.clone())
+            && self
+                .continuation
+                .is_identical_to(other.continuation.clone())
     }
 }
 
@@ -160,7 +163,10 @@ mod tests {
     use super::*;
 
     fn id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap()
+        ARID::from_data_ref(hex_literal::hex!(
+            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
+        ))
+        .unwrap()
     }
 
     #[test]
@@ -171,10 +177,11 @@ mod tests {
         let recovery = "recovery".to_string();
         let new_key = PrivateKeyBase::new().public_keys();
 
-        let request = StartRecoveryRequest::new(id(), key, recovery, new_key);
+        let request = StartRecoveryRequest::new_opt(id(), key, recovery, new_key);
         let request_envelope = request.clone().envelope();
-        assert_eq!(request_envelope.format(),
-        indoc! {r#"
+        assert_eq!(
+            request_envelope.format(),
+            indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"startRecovery"» [
                 ❰"key"❱: PublicKeyBase
@@ -182,7 +189,8 @@ mod tests {
                 ❰"recoveryMethod"❱: "recovery"
             ]
         ]
-        "#}.trim()
+        "#}
+            .trim()
         );
         let decoded = StartRecoveryRequest::try_from(request_envelope).unwrap();
         assert_eq!(request, decoded);
@@ -193,12 +201,14 @@ mod tests {
         let continuation = "continuation";
         let response = StartRecoveryResponse::new(id(), continuation.envelope());
         let response_envelope = response.clone().envelope();
-        assert_eq!(response_envelope.format(),
-        indoc! {r#"
+        assert_eq!(
+            response_envelope.format(),
+            indoc! {r#"
         response(ARID(8712dfac)) [
             'result': "continuation"
         ]
-        "#}.trim()
+        "#}
+            .trim()
         );
         let decoded = StartRecoveryResponse::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);

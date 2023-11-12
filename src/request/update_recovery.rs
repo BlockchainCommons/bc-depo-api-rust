@@ -17,7 +17,18 @@ pub struct UpdateRecoveryRequest {
 }
 
 impl UpdateRecoveryRequest {
-    pub fn new(id: ARID, key: PublicKeyBase, recovery: Option<String>) -> Self {
+    pub fn new(
+        key: PublicKeyBase,
+        recovery: Option<&str>,
+    ) -> Self {
+        Self::new_opt(
+            ARID::new(),
+            key,
+            recovery.map(|s| s.to_string()),
+        )
+    }
+
+    pub fn new_opt(id: ARID, key: PublicKeyBase, recovery: Option<String>) -> Self {
         Self {
             id,
             key,
@@ -61,12 +72,12 @@ impl EnvelopeDecodable for UpdateRecoveryRequest {
     fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
         let (id, key, body) = parse_request(UPDATE_RECOVERY_FUNCTION, envelope)?;
         let recovery_envelope = body.object_for_parameter(RECOVERY_METHOD_PARAM)?;
-        let recovery = if recovery_envelope.is_null() {
+        let recovery: Option<String> = if recovery_envelope.is_null() {
             None
         } else {
             Some(recovery_envelope.extract_subject()?)
         };
-        Ok(Self::new(id, key, recovery))
+        Ok(Self::new_opt(id, key, recovery))
     }
 }
 
@@ -148,7 +159,7 @@ mod tests {
 
         let recovery = "recovery".to_string();
 
-        let request = UpdateRecoveryRequest::new(id(), key.clone(), Some(recovery));
+        let request = UpdateRecoveryRequest::new_opt(id(), key.clone(), Some(recovery));
         let request_envelope = request.clone().envelope();
         assert_eq!(request_envelope.format(),
         indoc! {r#"
@@ -163,7 +174,7 @@ mod tests {
         let decoded = UpdateRecoveryRequest::try_from(request_envelope).unwrap();
         assert_eq!(request, decoded);
 
-        let request = UpdateRecoveryRequest::new(id(), key, None);
+        let request = UpdateRecoveryRequest::new_opt(id(), key, None);
         let request_envelope = request.clone().envelope();
         assert_eq!(request_envelope.format(),
         indoc! {r#"

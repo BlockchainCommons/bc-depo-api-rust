@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
@@ -6,7 +6,7 @@ use bytes::Bytes;
 
 use crate::{receipt::Receipt, GET_SHARES_FUNCTION, RECEIPT_PARAM};
 
-use super::{request_body, request_envelope, parse_request, response_envelope, parse_response};
+use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
 //
 // Request
@@ -20,16 +20,19 @@ pub struct GetSharesRequest {
 }
 
 impl GetSharesRequest {
-    pub fn new(
-        id: ARID,
-        key: PublicKeyBase,
-        receipts: HashSet<Receipt>,
+    pub fn new<'a>(
+        key: impl AsRef<PublicKeyBase>,
+        receipts: impl IntoIterator<Item = &'a Receipt>,
     ) -> Self {
-        Self {
-            id,
-            key,
-            receipts,
-        }
+        Self::new_opt(
+            ARID::new(),
+            key.as_ref().clone(),
+            receipts.into_iter().cloned().collect(),
+        )
+    }
+
+    pub fn new_opt(id: ARID, key: PublicKeyBase, receipts: HashSet<Receipt>) -> Self {
+        Self { id, key, receipts }
     }
 
     pub fn id(&self) -> &ARID {
@@ -64,11 +67,12 @@ impl From<GetSharesRequest> for Envelope {
 impl EnvelopeDecodable for GetSharesRequest {
     fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
         let (id, key, body) = parse_request(GET_SHARES_FUNCTION, envelope)?;
-        let receipts = body.objects_for_parameter(RECEIPT_PARAM)
+        let receipts = body
+            .objects_for_parameter(RECEIPT_PARAM)
             .into_iter()
             .map(|e| e.try_into())
             .collect::<anyhow::Result<HashSet<Receipt>>>()?;
-        Ok(Self::new(id, key, receipts))
+        Ok(Self::new_opt(id, key, receipts))
     }
 }
 
@@ -86,7 +90,6 @@ impl EnvelopeCodable for GetSharesRequest {}
 // Response
 //
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetSharesResponse {
     id: ARID,
@@ -94,10 +97,7 @@ pub struct GetSharesResponse {
 }
 
 impl GetSharesResponse {
-    pub fn new(
-        id: ARID,
-        receipt_to_data: HashMap<Receipt, Bytes>,
-    ) -> Self {
+    pub fn new(id: ARID, receipt_to_data: HashMap<Receipt, Bytes>) -> Self {
         Self {
             id,
             receipt_to_data,
@@ -110,6 +110,10 @@ impl GetSharesResponse {
 
     pub fn receipt_to_data(&self) -> &HashMap<Receipt, Bytes> {
         &self.receipt_to_data
+    }
+
+    pub fn data_for_receipt(&self, receipt: &Receipt) -> Option<&Bytes> {
+        self.receipt_to_data.get(receipt)
     }
 }
 
@@ -160,11 +164,17 @@ mod tests {
     use super::*;
 
     fn id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap()
+        ARID::from_data_ref(hex_literal::hex!(
+            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
+        ))
+        .unwrap()
     }
 
     fn user_id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap()
+        ARID::from_data_ref(hex_literal::hex!(
+            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
+        ))
+        .unwrap()
     }
 
     fn data_1() -> Bytes {
@@ -190,10 +200,11 @@ mod tests {
 
         let receipts = vec![receipt_1(), receipt_2()].into_iter().collect();
 
-        let request = GetSharesRequest::new(id(), key, receipts);
+        let request = GetSharesRequest::new_opt(id(), key, receipts);
         let request_envelope = request.clone().envelope();
-        assert_eq!(request_envelope.format(),
-        indoc! {r#"
+        assert_eq!(
+            request_envelope.format(),
+            indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"getShares"» [
                 ❰"key"❱: PublicKeyBase
@@ -205,7 +216,8 @@ mod tests {
                 ]
             ]
         ]
-        "#}.trim()
+        "#}
+            .trim()
         );
         let decoded = GetSharesRequest::try_from(request_envelope).unwrap();
         assert_eq!(request, decoded);
@@ -213,11 +225,14 @@ mod tests {
 
     #[test]
     fn test_response() {
-        let receipts_to_data = vec![(receipt_1(), data_1()), (receipt_2(), data_2())].into_iter().collect();
+        let receipts_to_data = vec![(receipt_1(), data_1()), (receipt_2(), data_2())]
+            .into_iter()
+            .collect();
         let response = GetSharesResponse::new(id(), receipts_to_data);
         let response_envelope = response.clone().envelope();
-        assert_eq!(response_envelope.format(),
-        indoc! {r#"
+        assert_eq!(
+            response_envelope.format(),
+            indoc! {r#"
         response(ARID(8712dfac)) [
             'result': 'OK' [
                 Bytes(32) [
@@ -230,7 +245,8 @@ mod tests {
                 : Bytes(6)
             ]
         ]
-        "#}.trim()
+        "#}
+            .trim()
         );
         let decoded = GetSharesResponse::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);

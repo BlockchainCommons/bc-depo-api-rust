@@ -3,7 +3,7 @@ use bc_envelope::prelude::*;
 
 use crate::DELETE_ACCOUNT_FUNCTION;
 
-use super::{request_body, request_envelope, parse_request, response_envelope, parse_response};
+use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
 //
 // Request
@@ -16,7 +16,11 @@ pub struct DeleteAccountRequest {
 }
 
 impl DeleteAccountRequest {
-    pub fn new(id: ARID, key: PublicKeyBase) -> Self {
+    pub fn new(key: impl AsRef<PublicKeyBase>) -> Self {
+        Self::new_opt(ARID::new(), key.as_ref().clone())
+    }
+
+    pub fn new_opt(id: ARID, key: PublicKeyBase) -> Self {
         Self { id, key }
     }
 
@@ -31,10 +35,7 @@ impl DeleteAccountRequest {
 
 impl EnvelopeEncodable for DeleteAccountRequest {
     fn envelope(self) -> Envelope {
-        request_envelope(
-            self.id,
-            request_body(DELETE_ACCOUNT_FUNCTION, self.key),
-        )
+        request_envelope(self.id, request_body(DELETE_ACCOUNT_FUNCTION, self.key))
     }
 }
 
@@ -47,7 +48,7 @@ impl From<DeleteAccountRequest> for Envelope {
 impl EnvelopeDecodable for DeleteAccountRequest {
     fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
         let (id, key, _body) = parse_request(DELETE_ACCOUNT_FUNCTION, envelope)?;
-        Ok(Self::new(id, key))
+        Ok(Self::new_opt(id, key))
     }
 }
 
@@ -117,7 +118,10 @@ mod tests {
     use super::*;
 
     fn id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap()
+        ARID::from_data_ref(hex_literal::hex!(
+            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
+        ))
+        .unwrap()
     }
 
     #[test]
@@ -125,16 +129,18 @@ mod tests {
         let private_key = PrivateKeyBase::new();
         let key = private_key.public_keys();
 
-        let request = DeleteAccountRequest::new(id(), key);
+        let request = DeleteAccountRequest::new_opt(id(), key);
         let request_envelope = request.clone().envelope();
-        assert_eq!(request_envelope.format(),
-        indoc! {r#"
+        assert_eq!(
+            request_envelope.format(),
+            indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"deleteAccount"» [
                 ❰"key"❱: PublicKeyBase
             ]
         ]
-        "#}.trim()
+        "#}
+            .trim()
         );
         let decoded = DeleteAccountRequest::try_from(request_envelope).unwrap();
         assert_eq!(request, decoded);
@@ -144,12 +150,14 @@ mod tests {
     fn test_response() {
         let response = DeleteAccountResponse::new(id());
         let response_envelope = response.clone().envelope();
-        assert_eq!(response_envelope.format(),
-        indoc! {r#"
+        assert_eq!(
+            response_envelope.format(),
+            indoc! {r#"
         response(ARID(8712dfac)) [
             'result': 'OK'
         ]
-        "#}.trim()
+        "#}
+            .trim()
         );
         let decoded = DeleteAccountResponse::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);

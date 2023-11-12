@@ -5,7 +5,7 @@ use bc_envelope::prelude::*;
 
 use crate::{receipt::Receipt, DELETE_SHARES_FUNCTION, RECEIPT_PARAM};
 
-use super::{request_envelope, request_body, parse_request, response_envelope, parse_response};
+use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
 //
 // Request
@@ -19,16 +19,19 @@ pub struct DeleteSharesRequest {
 }
 
 impl DeleteSharesRequest {
-    pub fn new(
-        id: ARID,
-        key: PublicKeyBase,
-        receipts: HashSet<Receipt>,
+    pub fn new<'a>(
+        key: impl AsRef<PublicKeyBase>,
+        receipts: impl IntoIterator<Item = &'a Receipt>,
     ) -> Self {
-        Self {
-            id,
-            key,
-            receipts,
-        }
+        Self::new_opt(
+            ARID::new(),
+            key.as_ref().clone(),
+            receipts.into_iter().cloned().collect(),
+        )
+    }
+
+    pub fn new_opt(id: ARID, key: PublicKeyBase, receipts: HashSet<Receipt>) -> Self {
+        Self { id, key, receipts }
     }
 
     pub fn id(&self) -> &ARID {
@@ -63,11 +66,12 @@ impl From<DeleteSharesRequest> for Envelope {
 impl EnvelopeDecodable for DeleteSharesRequest {
     fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
         let (id, key, body) = parse_request(DELETE_SHARES_FUNCTION, envelope)?;
-        let receipts = body.objects_for_parameter(RECEIPT_PARAM)
+        let receipts = body
+            .objects_for_parameter(RECEIPT_PARAM)
             .into_iter()
             .map(|e| e.try_into())
             .collect::<anyhow::Result<HashSet<Receipt>>>()?;
-        Ok(Self::new(id, key, receipts))
+        Ok(Self::new_opt(id, key, receipts))
     }
 }
 
@@ -85,17 +89,14 @@ impl EnvelopeCodable for DeleteSharesRequest {}
 // Response
 //
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeleteSharesResponse {
     id: ARID,
 }
 
 impl DeleteSharesResponse {
-    pub fn new(
-        id: ARID,
-    ) -> Self {
-        Self {id}
+    pub fn new(id: ARID) -> Self {
+        Self { id }
     }
 
     pub fn id(&self) -> &ARID {
@@ -140,11 +141,17 @@ mod tests {
     use super::*;
 
     fn id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap()
+        ARID::from_data_ref(hex_literal::hex!(
+            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
+        ))
+        .unwrap()
     }
 
     fn user_id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap()
+        ARID::from_data_ref(hex_literal::hex!(
+            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
+        ))
+        .unwrap()
     }
 
     fn receipt_1() -> Receipt {
@@ -162,10 +169,11 @@ mod tests {
 
         let receipts = vec![receipt_1(), receipt_2()].into_iter().collect();
 
-        let request = DeleteSharesRequest::new(id(), key, receipts);
+        let request = DeleteSharesRequest::new_opt(id(), key, receipts);
         let request_envelope = request.clone().envelope();
-        assert_eq!(request_envelope.format(),
-        indoc! {r#"
+        assert_eq!(
+            request_envelope.format(),
+            indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"deleteShares"» [
                 ❰"key"❱: PublicKeyBase
@@ -177,7 +185,8 @@ mod tests {
                 ]
             ]
         ]
-        "#}.trim()
+        "#}
+            .trim()
         );
         let decoded = DeleteSharesRequest::try_from(request_envelope).unwrap();
         assert_eq!(request, decoded);
@@ -187,12 +196,14 @@ mod tests {
     fn test_response() {
         let response = DeleteSharesResponse::new(id());
         let response_envelope = response.clone().envelope();
-        assert_eq!(response_envelope.format(),
-        indoc! {r#"
+        assert_eq!(
+            response_envelope.format(),
+            indoc! {r#"
         response(ARID(8712dfac)) [
             'result': 'OK'
         ]
-        "#}.trim()
+        "#}
+            .trim()
         );
         let decoded = DeleteSharesResponse::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);

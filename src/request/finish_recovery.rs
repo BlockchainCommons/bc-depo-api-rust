@@ -3,7 +3,7 @@ use bc_envelope::prelude::*;
 
 use crate::{FINISH_RECOVERY_FUNCTION, RECOVERY_CONTINUATION_PARAM};
 
-use super::{request_envelope, request_body, parse_response, response_envelope};
+use super::{parse_response, request_body, request_envelope, response_envelope};
 
 //
 // Request
@@ -17,7 +17,15 @@ pub struct FinishRecoveryRequest {
 }
 
 impl FinishRecoveryRequest {
-    pub fn new(id: ARID, key: PublicKeyBase, continuation: Envelope) -> Self {
+    pub fn new(key: impl AsRef<PublicKeyBase>, continuation: impl AsRef<Envelope>) -> Self {
+        Self::new_opt(
+            ARID::new(),
+            key.as_ref().clone(),
+            continuation.as_ref().clone(),
+        )
+    }
+
+    pub fn new_opt(id: ARID, key: PublicKeyBase, continuation: Envelope) -> Self {
         Self {
             id,
             key,
@@ -42,10 +50,7 @@ impl EnvelopeEncodable for FinishRecoveryRequest {
     fn envelope(self) -> Envelope {
         let body = request_body(FINISH_RECOVERY_FUNCTION, self.key)
             .add_parameter(RECOVERY_CONTINUATION_PARAM, self.continuation);
-        request_envelope(
-            self.id,
-            body,
-        )
+        request_envelope(self.id, body)
     }
 }
 
@@ -59,7 +64,7 @@ impl EnvelopeDecodable for FinishRecoveryRequest {
     fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
         let (id, key, body) = super::parse_request(FINISH_RECOVERY_FUNCTION, envelope)?;
         let continuation = body.object_for_parameter(RECOVERY_CONTINUATION_PARAM)?;
-        Ok(Self::new(id, key, continuation))
+        Ok(Self::new_opt(id, key, continuation))
     }
 }
 
@@ -77,7 +82,9 @@ impl PartialEq for FinishRecoveryRequest {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
             && self.key == other.key
-            && self.continuation.is_identical_to(other.continuation.clone())
+            && self
+                .continuation
+                .is_identical_to(other.continuation.clone())
     }
 }
 
@@ -87,15 +94,14 @@ impl Eq for FinishRecoveryRequest {}
 // Response
 //
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FinishRecoveryResponse {
     id: ARID,
 }
 
 impl FinishRecoveryResponse {
-    pub fn new(id: ARID,) -> Self {
-        Self {id}
+    pub fn new(id: ARID) -> Self {
+        Self { id }
     }
 
     pub fn id(&self) -> &ARID {
@@ -140,7 +146,10 @@ mod tests {
     use super::*;
 
     fn id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap()
+        ARID::from_data_ref(hex_literal::hex!(
+            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
+        ))
+        .unwrap()
     }
 
     #[test]
@@ -150,17 +159,19 @@ mod tests {
 
         let continuation = Envelope::new("Continuation");
 
-        let request = FinishRecoveryRequest::new(id(), key, continuation);
+        let request = FinishRecoveryRequest::new_opt(id(), key, continuation);
         let request_envelope = request.clone().envelope();
-        assert_eq!(request_envelope.format(),
-        indoc! {r#"
+        assert_eq!(
+            request_envelope.format(),
+            indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"finishRecovery"» [
                 ❰"key"❱: PublicKeyBase
                 ❰"recoveryContinuation"❱: "Continuation"
             ]
         ]
-        "#}.trim()
+        "#}
+            .trim()
         );
         let decoded = FinishRecoveryRequest::try_from(request_envelope).unwrap();
         assert_eq!(request, decoded);
@@ -170,12 +181,14 @@ mod tests {
     fn test_response() {
         let response = FinishRecoveryResponse::new(id());
         let response_envelope = response.clone().envelope();
-        assert_eq!(response_envelope.format(),
-        indoc! {r#"
+        assert_eq!(
+            response_envelope.format(),
+            indoc! {r#"
         response(ARID(8712dfac)) [
             'result': 'OK'
         ]
-        "#}.trim()
+        "#}
+            .trim()
         );
         let decoded = FinishRecoveryResponse::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);

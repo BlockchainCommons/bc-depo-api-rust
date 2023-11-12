@@ -18,7 +18,11 @@ pub struct StoreShareRequest {
 }
 
 impl StoreShareRequest {
-    pub fn new(id: ARID, key: PublicKeyBase, data: Bytes) -> Self {
+    pub fn new(key: impl AsRef<PublicKeyBase>, data: impl AsRef<[u8]>) -> Self {
+        Self::new_opt(ARID::new(), key.as_ref().clone(), Bytes::copy_from_slice(data.as_ref()))
+    }
+
+    pub fn new_opt(id: ARID, key: PublicKeyBase, data: Bytes) -> Self {
         Self {
             id,
             key,
@@ -55,10 +59,9 @@ impl From<StoreShareRequest> for Envelope {
 
 impl EnvelopeDecodable for StoreShareRequest {
     fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        println!("{}", envelope.format());
         let (id, key, body) = parse_request(STORE_SHARE_FUNCTION, envelope)?;
         let data: Bytes = body.extract_object_for_parameter(DATA_PARAM)?;
-        Ok(Self::new(id, key, data))
+        Ok(Self::new_opt(id, key, data))
     }
 }
 
@@ -156,7 +159,7 @@ mod tests {
         let private_key = PrivateKeyBase::new();
         let key = private_key.public_keys();
 
-        let request = StoreShareRequest::new(id(), key, Bytes::from_static(b"data"));
+        let request = StoreShareRequest::new_opt(id(), key, Bytes::from_static(b"data"));
         let request_envelope = request.clone().envelope();
         assert_eq!(request_envelope.format(),
         indoc! {r#"

@@ -1,9 +1,9 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 
-use crate::{UPDATE_KEY_FUNCTION, NEW_KEY_PARAM};
+use crate::{NEW_KEY_PARAM, UPDATE_KEY_FUNCTION};
 
-use super::{request_body, request_envelope, parse_request, response_envelope, parse_response};
+use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
 //
 // Request
@@ -17,12 +17,12 @@ pub struct UpdateKeyRequest {
 }
 
 impl UpdateKeyRequest {
-    pub fn new(id: ARID, key: PublicKeyBase, new_key: PublicKeyBase) -> Self {
-        Self {
-            id,
-            key,
-            new_key,
-        }
+    pub fn new(key: impl AsRef<PublicKeyBase>, new_key: impl AsRef<PublicKeyBase>) -> Self {
+        Self::new_opt(ARID::new(), key.as_ref().clone(), new_key.as_ref().clone())
+    }
+
+    pub fn new_opt(id: ARID, key: PublicKeyBase, new_key: PublicKeyBase) -> Self {
+        Self { id, key, new_key }
     }
 
     pub fn id(&self) -> &ARID {
@@ -40,8 +40,8 @@ impl UpdateKeyRequest {
 
 impl EnvelopeEncodable for UpdateKeyRequest {
     fn envelope(self) -> Envelope {
-        let body = request_body(UPDATE_KEY_FUNCTION, self.key)
-            .add_parameter(NEW_KEY_PARAM, self.new_key);
+        let body =
+            request_body(UPDATE_KEY_FUNCTION, self.key).add_parameter(NEW_KEY_PARAM, self.new_key);
         request_envelope(self.id, body)
     }
 }
@@ -56,7 +56,7 @@ impl EnvelopeDecodable for UpdateKeyRequest {
     fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
         let (id, key, body) = parse_request(UPDATE_KEY_FUNCTION, envelope)?;
         let new_key: PublicKeyBase = body.extract_object_for_parameter(NEW_KEY_PARAM)?;
-        Ok(Self::new(id, key, new_key))
+        Ok(Self::new_opt(id, key, new_key))
     }
 }
 
@@ -81,9 +81,7 @@ pub struct UpdateKeyResponse {
 
 impl UpdateKeyResponse {
     pub fn new(id: ARID) -> Self {
-        Self {
-            id,
-        }
+        Self { id }
     }
 
     pub fn id(&self) -> &ARID {
@@ -128,7 +126,10 @@ mod tests {
     use super::*;
 
     fn id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap()
+        ARID::from_data_ref(hex_literal::hex!(
+            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
+        ))
+        .unwrap()
     }
 
     #[test]
@@ -138,17 +139,19 @@ mod tests {
 
         let new_key = PrivateKeyBase::new().public_keys();
 
-        let request = UpdateKeyRequest::new(id(), key, new_key);
+        let request = UpdateKeyRequest::new_opt(id(), key, new_key);
         let request_envelope = request.clone().envelope();
-        assert_eq!(request_envelope.format(),
-        indoc! {r#"
+        assert_eq!(
+            request_envelope.format(),
+            indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"updateKey"» [
                 ❰"key"❱: PublicKeyBase
                 ❰"newKey"❱: PublicKeyBase
             ]
         ]
-        "#}.trim()
+        "#}
+            .trim()
         );
         let decoded = UpdateKeyRequest::try_from(request_envelope).unwrap();
         assert_eq!(request, decoded);
@@ -158,12 +161,14 @@ mod tests {
     fn test_response() {
         let response = UpdateKeyResponse::new(id());
         let response_envelope = response.clone().envelope();
-        assert_eq!(response_envelope.format(),
-        indoc! {r#"
+        assert_eq!(
+            response_envelope.format(),
+            indoc! {r#"
         response(ARID(8712dfac)) [
             'result': 'OK'
         ]
-        "#}.trim()
+        "#}
+            .trim()
         );
         let decoded = UpdateKeyResponse::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);
