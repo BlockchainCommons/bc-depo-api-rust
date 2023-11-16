@@ -2,6 +2,14 @@
 name = "depo-api"
 version = "0.1.0"
 edition = "2021"
+description = "API for the Blockchain Commons Depository ('depo') server."
+authors = ["Blockchain Commons"]
+keywords = ["cryptocurrency", "security", "key-management", "shamir-secret-sharing", "sskr", "distributed-storage", "recovery", "blockchain", "encryption", "server"]
+repository = "https://github.com/BlockchainCommons/bc-depo-api-rust"
+readme = "README.md"
+license = "BSD-2-Clause-Patent"
+categories = ["cryptography", "security", "database interfaces", "security"]
+documentation = "https://docs.rs/depo-api"
 
 [dependencies]
 dcbor = { version = "0.11.0", features = ["multithreaded"] }

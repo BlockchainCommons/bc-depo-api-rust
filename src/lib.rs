@@ -4,7 +4,7 @@ pub use receipt::Receipt;
 pub mod request;
 pub use request::*;
 
-pub use bc_envelope::prelude::*;
+use bc_envelope::prelude::*;
 
 // Functions
 
