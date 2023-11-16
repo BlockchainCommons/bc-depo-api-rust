@@ -1,7 +1,7 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 
-use crate::{NEW_KEY_PARAM, UPDATE_KEY_FUNCTION};
+use crate::{NEW_KEY_PARAM, UPDATE_KEY_FUNCTION, util::{Abbrev, FlankedFunction}};
 
 use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
@@ -70,6 +70,17 @@ impl TryFrom<Envelope> for UpdateKeyRequest {
 
 impl EnvelopeCodable for UpdateKeyRequest {}
 
+impl std::fmt::Display for UpdateKeyRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} old {} new {}",
+            self.id().abbrev(),
+            "updateKey".flanked_function(),
+            self.key().abbrev(),
+            self.new_key().abbrev()
+        ))
+    }
+}
+
 //
 // Response
 //
@@ -117,6 +128,15 @@ impl TryFrom<Envelope> for UpdateKeyResponse {
 }
 
 impl EnvelopeCodable for UpdateKeyResponse {}
+
+impl std::fmt::Display for UpdateKeyResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} OK",
+            self.id().abbrev(),
+            "updateKey".flanked_function()
+        ))
+    }
+}
 
 #[cfg(test)]
 mod tests {

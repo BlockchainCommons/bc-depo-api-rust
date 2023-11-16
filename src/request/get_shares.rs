@@ -4,7 +4,7 @@ use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 use bytes::Bytes;
 
-use crate::{receipt::Receipt, GET_SHARES_FUNCTION, RECEIPT_PARAM};
+use crate::{receipt::Receipt, GET_SHARES_FUNCTION, RECEIPT_PARAM, util::{Abbrev, FlankedFunction}};
 
 use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
@@ -86,6 +86,17 @@ impl TryFrom<Envelope> for GetSharesRequest {
 
 impl EnvelopeCodable for GetSharesRequest {}
 
+impl std::fmt::Display for GetSharesRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} {} key {}",
+            self.id().abbrev(),
+            "getShares".flanked_function(),
+            self.receipts().abbrev(),
+            self.key().abbrev()
+        ))
+    }
+}
+
 //
 // Response
 //
@@ -155,6 +166,16 @@ impl TryFrom<Envelope> for GetSharesResponse {
 }
 
 impl EnvelopeCodable for GetSharesResponse {}
+
+impl std::fmt::Display for GetSharesResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} OK {}",
+            self.id().abbrev(),
+            "getShares".flanked_function(),
+            self.receipt_to_data().abbrev()
+        ))
+    }
+}
 
 #[cfg(test)]
 mod tests {

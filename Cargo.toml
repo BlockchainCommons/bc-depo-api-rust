@@ -4,17 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# dcbor = { version = "0.10.0", features = ["multithreaded"] }
-dcbor = { path = "../dcbor", features = ["multithreaded"] }
+dcbor = { version = "0.11.0", features = ["multithreaded"] }
+# dcbor = { path = "../dcbor", features = ["multithreaded"] }
 
-# bc-ur = "0.2.1"
-bc-ur = { path = "../bc-ur" }
+bc-ur = "0.2.2"
+# bc-ur = { path = "../bc-ur" }
 
-# bc-envelope = { version = "0.11.0", features = ["multithreaded"] }
-bc-envelope = { path = "../bc-envelope", features = ["multithreaded"] }
+bc-envelope = { version = "0.12.0", features = ["multithreaded"] }
+# bc-envelope = { path = "../bc-envelope", features = ["multithreaded"] }
 
-# bc-components = "0.6.0"
-bc-components = { path = "../bc-components" }
+bc-components = "0.7.0"
+# bc-components = { path = "../bc-components" }
 
 bytes = "1.5.0"
 anyhow = "1.0"

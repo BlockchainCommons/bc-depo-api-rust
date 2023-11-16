@@ -1,7 +1,7 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 
-use crate::DELETE_ACCOUNT_FUNCTION;
+use crate::{DELETE_ACCOUNT_FUNCTION, util::{Abbrev, FlankedFunction}};
 
 use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
@@ -62,6 +62,16 @@ impl TryFrom<Envelope> for DeleteAccountRequest {
 
 impl EnvelopeCodable for DeleteAccountRequest {}
 
+impl std::fmt::Display for DeleteAccountRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} key {}",
+            self.id().abbrev(),
+            "deleteAccount".flanked_function(),
+            self.key().abbrev()
+        ))
+    }
+}
+
 //
 // Response
 //
@@ -109,6 +119,15 @@ impl TryFrom<Envelope> for DeleteAccountResponse {
 }
 
 impl EnvelopeCodable for DeleteAccountResponse {}
+
+impl std::fmt::Display for DeleteAccountResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} OK",
+            self.id().abbrev(),
+            "deleteAccount".flanked_function()
+        ))
+    }
+}
 
 #[cfg(test)]
 mod tests {

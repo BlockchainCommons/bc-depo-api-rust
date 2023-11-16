@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 
-use crate::{receipt::Receipt, DELETE_SHARES_FUNCTION, RECEIPT_PARAM};
+use crate::{receipt::Receipt, DELETE_SHARES_FUNCTION, RECEIPT_PARAM, util::{Abbrev, FlankedFunction}};
 
 use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
@@ -85,6 +85,17 @@ impl TryFrom<Envelope> for DeleteSharesRequest {
 
 impl EnvelopeCodable for DeleteSharesRequest {}
 
+impl std::fmt::Display for DeleteSharesRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} {} key {}",
+            self.id().abbrev(),
+            "deleteShares".flanked_function(),
+            self.receipts().abbrev(),
+            self.key().abbrev()
+        ))
+    }
+}
+
 //
 // Response
 //
@@ -132,6 +143,15 @@ impl TryFrom<Envelope> for DeleteSharesResponse {
 }
 
 impl EnvelopeCodable for DeleteSharesResponse {}
+
+impl std::fmt::Display for DeleteSharesResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} OK",
+            self.id().abbrev(),
+            "deleteShares".flanked_function()
+        ))
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -2,7 +2,7 @@ use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 use bytes::Bytes;
 
-use crate::{STORE_SHARE_FUNCTION, DATA_PARAM, receipt::Receipt};
+use crate::{STORE_SHARE_FUNCTION, DATA_PARAM, receipt::Receipt, util::{Abbrev, FlankedFunction}};
 
 use super::{request_body, request_envelope, parse_request, response_envelope, parse_response};
 
@@ -75,6 +75,17 @@ impl TryFrom<Envelope> for StoreShareRequest {
 
 impl EnvelopeCodable for StoreShareRequest {}
 
+impl std::fmt::Display for StoreShareRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} {} key {}",
+            self.id().abbrev(),
+            "storeShare".flanked_function(),
+            self.data().abbrev(),
+            self.key().abbrev()
+        ))
+    }
+}
+
 //
 // Response
 //
@@ -130,6 +141,16 @@ impl TryFrom<Envelope> for StoreShareResponse {
 }
 
 impl EnvelopeCodable for StoreShareResponse {}
+
+impl std::fmt::Display for StoreShareResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} OK receipt {}",
+            self.id().abbrev(),
+            "storeShare".flanked_function(),
+            self.receipt().abbrev()
+        ))
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -1,7 +1,7 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 
-use crate::GET_RECOVERY_FUNCTION;
+use crate::{GET_RECOVERY_FUNCTION, util::{Abbrev, FlankedFunction}};
 
 use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
@@ -61,6 +61,16 @@ impl TryFrom<Envelope> for GetRecoveryRequest {
 }
 
 impl EnvelopeCodable for GetRecoveryRequest {}
+
+impl std::fmt::Display for GetRecoveryRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} key {}",
+            self.id().abbrev(),
+            "getRecovery".flanked_function(),
+            self.key().abbrev()
+        ))
+    }
+}
 
 //
 // Response
@@ -124,6 +134,16 @@ impl TryFrom<Envelope> for GetRecoveryResponse {
 }
 
 impl EnvelopeCodable for GetRecoveryResponse {}
+
+impl std::fmt::Display for GetRecoveryResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} OK: {}",
+            self.id().abbrev(),
+            "getRecovery".flanked_function(),
+            self.recovery().abbrev()
+        ))
+    }
+}
 
 #[cfg(test)]
 mod tests {

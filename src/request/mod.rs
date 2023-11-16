@@ -3,6 +3,8 @@ use bc_envelope::prelude::*;
 
 use crate::KEY_PARAM;
 
+pub mod util;
+
 pub mod delete_account;
 pub use delete_account::{DeleteAccountRequest, DeleteAccountResponse};
 

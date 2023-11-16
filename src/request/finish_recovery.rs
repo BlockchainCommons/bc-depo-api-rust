@@ -1,7 +1,7 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 
-use crate::{FINISH_RECOVERY_FUNCTION, RECOVERY_CONTINUATION_PARAM};
+use crate::{FINISH_RECOVERY_FUNCTION, RECOVERY_CONTINUATION_PARAM, util::{Abbrev, FlankedFunction}};
 
 use super::{parse_response, request_body, request_envelope, response_envelope};
 
@@ -90,6 +90,17 @@ impl PartialEq for FinishRecoveryRequest {
 
 impl Eq for FinishRecoveryRequest {}
 
+impl std::fmt::Display for FinishRecoveryRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} continuation {} for key {}",
+            self.id().abbrev(),
+            "finishRecovery".flanked_function(),
+            self.continuation().abbrev(),
+            self.key().abbrev()
+        ))
+    }
+}
+
 //
 // Response
 //
@@ -137,6 +148,15 @@ impl TryFrom<Envelope> for FinishRecoveryResponse {
 }
 
 impl EnvelopeCodable for FinishRecoveryResponse {}
+
+impl std::fmt::Display for FinishRecoveryResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} OK",
+            self.id().abbrev(),
+            "finishRecovery".flanked_function()
+        ))
+    }
+}
 
 #[cfg(test)]
 mod tests {

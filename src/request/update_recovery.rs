@@ -1,7 +1,7 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 
-use crate::{UPDATE_RECOVERY_FUNCTION, RECOVERY_METHOD_PARAM};
+use crate::{UPDATE_RECOVERY_FUNCTION, RECOVERY_METHOD_PARAM, util::{Abbrev, FlankedFunction}};
 
 use super::{request_body, request_envelope, parse_request, response_envelope, parse_response};
 
@@ -91,6 +91,17 @@ impl TryFrom<Envelope> for UpdateRecoveryRequest {
 
 impl EnvelopeCodable for UpdateRecoveryRequest {}
 
+impl std::fmt::Display for UpdateRecoveryRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} key {} to {}",
+            self.id().abbrev(),
+            "updateRecovery".flanked_function(),
+            self.key().abbrev(),
+            self.recovery().abbrev()
+        ))
+    }
+}
+
 //
 // Response
 //
@@ -140,6 +151,15 @@ impl TryFrom<Envelope> for UpdateRecoveryResponse {
 }
 
 impl EnvelopeCodable for UpdateRecoveryResponse {}
+
+impl std::fmt::Display for UpdateRecoveryResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}: {} OK",
+            self.id().abbrev(),
+            "updateRecovery".flanked_function()
+        ))
+    }
+}
 
 #[cfg(test)]
 mod tests {
