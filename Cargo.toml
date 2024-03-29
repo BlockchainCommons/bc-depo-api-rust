@@ -18,10 +18,10 @@ dcbor = { version = "0.11", features = ["multithreaded"] }
 bc-ur = "0.2"
 # bc-ur = { path = "../bc-ur" }
 
-bc-envelope = { version = "0.12", features = ["multithreaded"] }
+bc-envelope = { version = "0.13", features = ["multithreaded"] }
 # bc-envelope = { path = "../bc-envelope", features = ["multithreaded"] }
 
-bc-components = "0.7"
+bc-components = "0.8"
 # bc-components = { path = "../bc-components" }
 
 bytes = "1.5.0"

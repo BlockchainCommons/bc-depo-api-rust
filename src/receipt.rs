@@ -72,7 +72,7 @@ mod tests {
         assert_eq!(format!("{:?}", receipt), "Receipt(12bd077763220d3223f6cd74f4d51103f29c7ba70b68765cd8ee13c84ee50152)");
 
         let envelope = receipt.clone().envelope();
-        assert_eq!(format!("{}", envelope.ur_string()), "ur:envelope/lftpcshdcxbgryatktiacpbteycnynsnjywktlbyaxwznskgosbdiskohhtpwybwspglvwadgmoyadtpcsiogmihiaihinjojycwswqdbd");
+        assert_eq!(format!("{}", envelope.ur_string()), "ur:envelope/lftpsohdcxbgryatktiacpbteycnynsnjywktlbyaxwznskgosbdiskohhtpwybwspglvwadgmoyadtpsoiogmihiaihinjojyamdwplrf");
         assert_eq!(envelope.format(),
         indoc!{r#"
         Bytes(32) [

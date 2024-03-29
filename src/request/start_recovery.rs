@@ -150,7 +150,7 @@ impl PartialEq for StartRecoveryResponse {
         self.id == other.id
             && self
                 .continuation
-                .is_identical_to(other.continuation.clone())
+                .is_identical_to(&other.continuation)
     }
 }
 
