@@ -1,6 +1,6 @@
 [package]
 name = "depo-api"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 description = "API for the Blockchain Commons Depository ('depo') server."
 authors = ["Blockchain Commons"]
