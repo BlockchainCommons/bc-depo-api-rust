@@ -1,9 +1,8 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
+use anyhow::{Error, Result};
 
 use crate::{RECOVERY_METHOD_PARAM, START_RECOVERY_FUNCTION, util::{Abbrev, FlankedFunction}};
-
-use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
 //
 // Request
@@ -17,23 +16,28 @@ pub struct StartRecoveryRequest {
 }
 
 impl StartRecoveryRequest {
+    pub fn from_fields(id: ARID, key: PublicKeyBase, recovery: String) -> Self {
+        Self {
+            id,
+            key,
+            recovery,
+        }
+    }
+
     pub fn new(
         key: impl AsRef<PublicKeyBase>,
         recovery: impl AsRef<str>,
     ) -> Self {
-        Self::new_opt(
+        Self::from_fields(
             ARID::new(),
             key.as_ref().clone(),
             recovery.as_ref().to_string(),
         )
     }
 
-    pub fn new_opt(id: ARID, key: PublicKeyBase, recovery: String) -> Self {
-        Self {
-            id,
-            key,
-            recovery,
-        }
+    pub fn from_body(id: ARID, key: PublicKeyBase, body: Envelope) -> Result<Self> {
+        let recovery: String = body.extract_object_for_parameter(RECOVERY_METHOD_PARAM)?;
+        Ok(Self::from_fields(id, key, recovery))
     }
 
     pub fn id(&self) -> &ARID {
@@ -49,37 +53,23 @@ impl StartRecoveryRequest {
     }
 }
 
-impl EnvelopeEncodable for StartRecoveryRequest {
-    fn envelope(self) -> Envelope {
-        let body = request_body(START_RECOVERY_FUNCTION, self.key)
-            .add_parameter(RECOVERY_METHOD_PARAM, self.recovery);
-        request_envelope(self.id, body)
-    }
-}
-
 impl From<StartRecoveryRequest> for Envelope {
     fn from(value: StartRecoveryRequest) -> Self {
-        value.envelope()
+        let id = value.id().clone();
+        Envelope::new_function(START_RECOVERY_FUNCTION)
+            .add_parameter(RECOVERY_METHOD_PARAM, value.recovery)
+            .into_transaction_request(id, &value.key)
     }
 }
 
-impl EnvelopeDecodable for StartRecoveryRequest {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, key, body) = parse_request(START_RECOVERY_FUNCTION, envelope)?;
-        let recovery: String = body.extract_object_for_parameter(RECOVERY_METHOD_PARAM)?;
-        Ok(Self::new_opt(id, key, recovery))
+impl TryFrom<&Envelope> for StartRecoveryRequest {
+    type Error = Error;
+
+    fn try_from(envelope: &Envelope) -> Result<Self> {
+        let (id, key, body, _) = envelope.parse_transaction_request(Some(&START_RECOVERY_FUNCTION))?;
+        Self::from_body(id, key, body)
     }
 }
-
-impl TryFrom<Envelope> for StartRecoveryRequest {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
-    }
-}
-
-impl EnvelopeCodable for StartRecoveryRequest {}
 
 impl std::fmt::Display for StartRecoveryRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -116,34 +106,20 @@ impl StartRecoveryResponse {
     }
 }
 
-impl EnvelopeEncodable for StartRecoveryResponse {
-    fn envelope(self) -> Envelope {
-        response_envelope(self.id, Some(self.continuation))
-    }
-}
-
 impl From<StartRecoveryResponse> for Envelope {
     fn from(value: StartRecoveryResponse) -> Self {
-        value.envelope()
-    }
-}
-
-impl EnvelopeDecodable for StartRecoveryResponse {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, continuation) = parse_response(envelope)?;
-        Ok(Self::new(id, continuation))
+        value.continuation.into_success_response(value.id)
     }
 }
 
 impl TryFrom<Envelope> for StartRecoveryResponse {
-    type Error = anyhow::Error;
+    type Error = Error;
 
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
+    fn try_from(envelope: Envelope) -> Result<Self> {
+        let (continuation, id) = envelope.parse_success_response(None)?;
+        Ok(Self::new(id, continuation))
     }
 }
-
-impl EnvelopeCodable for StartRecoveryResponse {}
 
 impl PartialEq for StartRecoveryResponse {
     fn eq(&self, other: &Self) -> bool {
@@ -183,31 +159,31 @@ mod tests {
     #[test]
     fn test_request() {
         let recovery = "recovery".to_string();
-        let new_key = PrivateKeyBase::new().public_keys();
+        let new_key = PrivateKeyBase::new().public_key();
 
-        let request = StartRecoveryRequest::new_opt(id(), new_key, recovery);
-        let request_envelope = request.clone().envelope();
+        let request = StartRecoveryRequest::from_fields(id(), new_key, recovery);
+        let request_envelope = request.to_envelope();
         assert_eq!(
             request_envelope.format(),
             indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"startRecovery"» [
-                ❰"key"❱: PublicKeyBase
                 ❰"recoveryMethod"❱: "recovery"
             ]
+            'senderPublicKey': PublicKeyBase
         ]
         "#}
             .trim()
         );
-        let decoded = StartRecoveryRequest::try_from(request_envelope).unwrap();
+        let decoded = StartRecoveryRequest::try_from(&request_envelope).unwrap();
         assert_eq!(request, decoded);
     }
 
     #[test]
     fn test_response() {
         let continuation = "continuation";
-        let response = StartRecoveryResponse::new(id(), continuation.envelope());
-        let response_envelope = response.clone().envelope();
+        let response = StartRecoveryResponse::new(id(), continuation.to_envelope());
+        let response_envelope = response.to_envelope();
         assert_eq!(
             response_envelope.format(),
             indoc! {r#"

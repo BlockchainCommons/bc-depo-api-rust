@@ -1,9 +1,8 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
+use anyhow::{Error, Result};
 
 use crate::{DELETE_ACCOUNT_FUNCTION, util::{Abbrev, FlankedFunction}};
-
-use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
 //
 // Request
@@ -16,12 +15,16 @@ pub struct DeleteAccountRequest {
 }
 
 impl DeleteAccountRequest {
-    pub fn new(key: impl AsRef<PublicKeyBase>) -> Self {
-        Self::new_opt(ARID::new(), key.as_ref().clone())
+    pub fn from_fields(id: ARID, key: PublicKeyBase) -> Self {
+        Self { id, key }
     }
 
-    pub fn new_opt(id: ARID, key: PublicKeyBase) -> Self {
-        Self { id, key }
+    pub fn new(key: impl AsRef<PublicKeyBase>) -> Self {
+        Self::from_fields(ARID::new(), key.as_ref().clone())
+    }
+
+    pub fn from_body(id: ARID, key: PublicKeyBase, _body: Envelope) -> Result<Self> {
+        Ok(Self::from_fields(id, key))
     }
 
     pub fn id(&self) -> &ARID {
@@ -33,34 +36,21 @@ impl DeleteAccountRequest {
     }
 }
 
-impl EnvelopeEncodable for DeleteAccountRequest {
-    fn envelope(self) -> Envelope {
-        request_envelope(self.id, request_body(DELETE_ACCOUNT_FUNCTION, self.key))
-    }
-}
-
 impl From<DeleteAccountRequest> for Envelope {
     fn from(value: DeleteAccountRequest) -> Self {
-        value.envelope()
-    }
-}
-
-impl EnvelopeDecodable for DeleteAccountRequest {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, key, _body) = parse_request(DELETE_ACCOUNT_FUNCTION, envelope)?;
-        Ok(Self::new_opt(id, key))
+        Envelope::new_function(DELETE_ACCOUNT_FUNCTION)
+            .into_transaction_request(value.id, value.key)
     }
 }
 
 impl TryFrom<Envelope> for DeleteAccountRequest {
-    type Error = anyhow::Error;
+    type Error = Error;
 
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
+    fn try_from(envelope: Envelope) -> Result<Self> {
+        let (id, key, body, _) = envelope.parse_transaction_request(Some(&DELETE_ACCOUNT_FUNCTION))?;
+        Self::from_body(id, key, body)
     }
 }
-
-impl EnvelopeCodable for DeleteAccountRequest {}
 
 impl std::fmt::Display for DeleteAccountRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -68,63 +58,6 @@ impl std::fmt::Display for DeleteAccountRequest {
             self.id().abbrev(),
             "deleteAccount".flanked_function(),
             self.key().abbrev()
-        ))
-    }
-}
-
-//
-// Response
-//
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeleteAccountResponse {
-    id: ARID,
-}
-
-impl DeleteAccountResponse {
-    pub fn new(id: ARID) -> Self {
-        Self { id }
-    }
-
-    pub fn id(&self) -> &ARID {
-        &self.id
-    }
-}
-
-impl EnvelopeEncodable for DeleteAccountResponse {
-    fn envelope(self) -> Envelope {
-        response_envelope(self.id, None)
-    }
-}
-
-impl From<DeleteAccountResponse> for Envelope {
-    fn from(value: DeleteAccountResponse) -> Self {
-        value.envelope()
-    }
-}
-
-impl EnvelopeDecodable for DeleteAccountResponse {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, _result) = parse_response(envelope)?;
-        Ok(Self::new(id))
-    }
-}
-
-impl TryFrom<Envelope> for DeleteAccountResponse {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
-    }
-}
-
-impl EnvelopeCodable for DeleteAccountResponse {}
-
-impl std::fmt::Display for DeleteAccountResponse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}: {} OK",
-            self.id().abbrev(),
-            "deleteAccount".flanked_function()
         ))
     }
 }
@@ -146,39 +79,21 @@ mod tests {
     #[test]
     fn test_request() {
         let private_key = PrivateKeyBase::new();
-        let key = private_key.public_keys();
+        let key = private_key.public_key();
 
-        let request = DeleteAccountRequest::new_opt(id(), key);
-        let request_envelope = request.clone().envelope();
+        let request = DeleteAccountRequest::from_fields(id(), key);
+        let request_envelope = request.clone().to_envelope();
         assert_eq!(
             request_envelope.format(),
             indoc! {r#"
         request(ARID(8712dfac)) [
-            'body': «"deleteAccount"» [
-                ❰"key"❱: PublicKeyBase
-            ]
+            'body': «"deleteAccount"»
+            'senderPublicKey': PublicKeyBase
         ]
         "#}
             .trim()
         );
-        let decoded = DeleteAccountRequest::try_from(request_envelope).unwrap();
+        let decoded = request_envelope.try_into().unwrap();
         assert_eq!(request, decoded);
-    }
-
-    #[test]
-    fn test_response() {
-        let response = DeleteAccountResponse::new(id());
-        let response_envelope = response.clone().envelope();
-        assert_eq!(
-            response_envelope.format(),
-            indoc! {r#"
-        response(ARID(8712dfac)) [
-            'result': 'OK'
-        ]
-        "#}
-            .trim()
-        );
-        let decoded = DeleteAccountResponse::try_from(response_envelope).unwrap();
-        assert_eq!(response, decoded);
     }
 }

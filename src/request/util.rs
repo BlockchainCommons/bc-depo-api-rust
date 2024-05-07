@@ -2,7 +2,6 @@ use std::collections::{HashSet, HashMap};
 
 use bc_components::{ARID, PublicKeyBase, PrivateKeyBase};
 use bc_envelope::prelude::*;
-use bc_ur::UREncodable;
 use bytes::Bytes;
 
 use crate::Receipt;
@@ -167,7 +166,8 @@ impl Abbrev for Envelope {
 
 impl Abbrev for Receipt {
     fn abbrev(&self) -> String {
-        self.envelope().ur_string().suffix(8).flanked_abbrev()
+        let envelope: Envelope = self.clone().into();
+        envelope.ur_string().suffix(8).flanked_abbrev()
     }
 }
 

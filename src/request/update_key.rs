@@ -1,9 +1,8 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
+use anyhow::{Error, Result};
 
 use crate::{NEW_KEY_PARAM, UPDATE_KEY_FUNCTION, util::{Abbrev, FlankedFunction}};
-
-use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
 //
 // Request
@@ -17,12 +16,17 @@ pub struct UpdateKeyRequest {
 }
 
 impl UpdateKeyRequest {
-    pub fn new(key: impl AsRef<PublicKeyBase>, new_key: impl AsRef<PublicKeyBase>) -> Self {
-        Self::new_opt(ARID::new(), key.as_ref().clone(), new_key.as_ref().clone())
+    pub fn from_fields(id: ARID, key: PublicKeyBase, new_key: PublicKeyBase) -> Self {
+        Self { id, key, new_key }
     }
 
-    pub fn new_opt(id: ARID, key: PublicKeyBase, new_key: PublicKeyBase) -> Self {
-        Self { id, key, new_key }
+    pub fn new(key: impl AsRef<PublicKeyBase>, new_key: impl AsRef<PublicKeyBase>) -> Self {
+        Self::from_fields(ARID::new(), key.as_ref().clone(), new_key.as_ref().clone())
+    }
+
+    pub fn from_body(id: ARID, key: PublicKeyBase, body: Envelope) -> Result<Self> {
+        let new_key = body.extract_object_for_parameter(NEW_KEY_PARAM)?;
+        Ok(Self::from_fields(id, key, new_key))
     }
 
     pub fn id(&self) -> &ARID {
@@ -38,37 +42,23 @@ impl UpdateKeyRequest {
     }
 }
 
-impl EnvelopeEncodable for UpdateKeyRequest {
-    fn envelope(self) -> Envelope {
-        let body =
-            request_body(UPDATE_KEY_FUNCTION, self.key).add_parameter(NEW_KEY_PARAM, self.new_key);
-        request_envelope(self.id, body)
-    }
-}
-
 impl From<UpdateKeyRequest> for Envelope {
     fn from(value: UpdateKeyRequest) -> Self {
-        value.envelope()
+        let id = value.id().clone();
+        Envelope::new_function(UPDATE_KEY_FUNCTION)
+            .add_parameter(NEW_KEY_PARAM, value.new_key)
+            .into_transaction_request(id, value.key)
     }
 }
 
-impl EnvelopeDecodable for UpdateKeyRequest {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, key, body) = parse_request(UPDATE_KEY_FUNCTION, envelope)?;
-        let new_key: PublicKeyBase = body.extract_object_for_parameter(NEW_KEY_PARAM)?;
-        Ok(Self::new_opt(id, key, new_key))
+impl TryFrom<&Envelope> for UpdateKeyRequest {
+    type Error = Error;
+
+    fn try_from(envelope: &Envelope) -> Result<Self> {
+        let (id, key, body, _) = envelope.parse_transaction_request(Some(&UPDATE_KEY_FUNCTION))?;
+        Self::from_body(id, key, body)
     }
 }
-
-impl TryFrom<Envelope> for UpdateKeyRequest {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
-    }
-}
-
-impl EnvelopeCodable for UpdateKeyRequest {}
 
 impl std::fmt::Display for UpdateKeyRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -77,63 +67,6 @@ impl std::fmt::Display for UpdateKeyRequest {
             "updateKey".flanked_function(),
             self.key().abbrev(),
             self.new_key().abbrev()
-        ))
-    }
-}
-
-//
-// Response
-//
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UpdateKeyResponse {
-    id: ARID,
-}
-
-impl UpdateKeyResponse {
-    pub fn new(id: ARID) -> Self {
-        Self { id }
-    }
-
-    pub fn id(&self) -> &ARID {
-        self.id.as_ref()
-    }
-}
-
-impl EnvelopeEncodable for UpdateKeyResponse {
-    fn envelope(self) -> Envelope {
-        response_envelope(self.id, None)
-    }
-}
-
-impl From<UpdateKeyResponse> for Envelope {
-    fn from(value: UpdateKeyResponse) -> Self {
-        value.envelope()
-    }
-}
-
-impl EnvelopeDecodable for UpdateKeyResponse {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, _result) = parse_response(envelope)?;
-        Ok(Self::new(id))
-    }
-}
-
-impl TryFrom<Envelope> for UpdateKeyResponse {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
-    }
-}
-
-impl EnvelopeCodable for UpdateKeyResponse {}
-
-impl std::fmt::Display for UpdateKeyResponse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}: {} OK",
-            self.id().abbrev(),
-            "updateKey".flanked_function()
         ))
     }
 }
@@ -155,42 +88,25 @@ mod tests {
     #[test]
     fn test_request() {
         let private_key = PrivateKeyBase::new();
-        let key = private_key.public_keys();
+        let key = private_key.public_key();
 
-        let new_key = PrivateKeyBase::new().public_keys();
+        let new_key = PrivateKeyBase::new().public_key();
 
-        let request = UpdateKeyRequest::new_opt(id(), key, new_key);
-        let request_envelope = request.clone().envelope();
+        let request = UpdateKeyRequest::from_fields(id(), key, new_key);
+        let request_envelope = request.to_envelope();
         assert_eq!(
             request_envelope.format(),
             indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"updateKey"» [
-                ❰"key"❱: PublicKeyBase
                 ❰"newKey"❱: PublicKeyBase
             ]
+            'senderPublicKey': PublicKeyBase
         ]
         "#}
             .trim()
         );
-        let decoded = UpdateKeyRequest::try_from(request_envelope).unwrap();
+        let decoded = UpdateKeyRequest::try_from(&request_envelope).unwrap();
         assert_eq!(request, decoded);
-    }
-
-    #[test]
-    fn test_response() {
-        let response = UpdateKeyResponse::new(id());
-        let response_envelope = response.clone().envelope();
-        assert_eq!(
-            response_envelope.format(),
-            indoc! {r#"
-        response(ARID(8712dfac)) [
-            'result': 'OK'
-        ]
-        "#}
-            .trim()
-        );
-        let decoded = UpdateKeyResponse::try_from(response_envelope).unwrap();
-        assert_eq!(response, decoded);
     }
 }

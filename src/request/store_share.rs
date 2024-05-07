@@ -1,10 +1,9 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 use bytes::Bytes;
+use anyhow::{Error, Result};
 
 use crate::{STORE_SHARE_FUNCTION, DATA_PARAM, receipt::Receipt, util::{Abbrev, FlankedFunction}};
-
-use super::{request_body, request_envelope, parse_request, response_envelope, parse_response};
 
 //
 // Request
@@ -18,16 +17,21 @@ pub struct StoreShareRequest {
 }
 
 impl StoreShareRequest {
-    pub fn new(key: impl AsRef<PublicKeyBase>, data: impl AsRef<[u8]>) -> Self {
-        Self::new_opt(ARID::new(), key.as_ref().clone(), Bytes::copy_from_slice(data.as_ref()))
-    }
-
-    pub fn new_opt(id: ARID, key: PublicKeyBase, data: Bytes) -> Self {
+    pub fn from_fields(id: ARID, key: PublicKeyBase, data: Bytes) -> Self {
         Self {
             id,
             key,
             data,
         }
+    }
+
+    pub fn new(key: impl AsRef<PublicKeyBase>, data: impl AsRef<[u8]>) -> Self {
+        Self::from_fields(ARID::new(), key.as_ref().clone(), Bytes::copy_from_slice(data.as_ref()))
+    }
+
+    pub fn from_body(id: ARID, key: PublicKeyBase, body: Envelope) -> Result<Self> {
+        let data: Bytes = body.extract_object_for_parameter(DATA_PARAM)?;
+        Ok(Self::from_fields(id, key, data))
     }
 
     pub fn id(&self) -> &ARID {
@@ -43,37 +47,23 @@ impl StoreShareRequest {
     }
 }
 
-impl EnvelopeEncodable for StoreShareRequest {
-    fn envelope(self) -> Envelope {
-        let body = request_body(STORE_SHARE_FUNCTION, self.key)
-            .add_parameter(DATA_PARAM, self.data);
-        request_envelope(self.id, body)
-    }
-}
-
 impl From<StoreShareRequest> for Envelope {
     fn from(value: StoreShareRequest) -> Self {
-        value.envelope()
+        let id = value.id().clone();
+        Envelope::new_function(STORE_SHARE_FUNCTION)
+            .add_parameter(DATA_PARAM, value.data)
+            .into_transaction_request(id, &value.key)
     }
 }
 
-impl EnvelopeDecodable for StoreShareRequest {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, key, body) = parse_request(STORE_SHARE_FUNCTION, envelope)?;
-        let data: Bytes = body.extract_object_for_parameter(DATA_PARAM)?;
-        Ok(Self::new_opt(id, key, data))
+impl TryFrom<&Envelope> for StoreShareRequest {
+    type Error = Error;
+
+    fn try_from(envelope: &Envelope) -> Result<Self> {
+        let (id, key, body, _) = envelope.parse_transaction_request(Some(&STORE_SHARE_FUNCTION))?;
+        Self::from_body(id, key, body)
     }
 }
-
-impl TryFrom<Envelope> for StoreShareRequest {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
-    }
-}
-
-impl EnvelopeCodable for StoreShareRequest {}
 
 impl std::fmt::Display for StoreShareRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -113,34 +103,20 @@ impl StoreShareResponse {
     }
 }
 
-impl EnvelopeEncodable for StoreShareResponse {
-    fn envelope(self) -> Envelope {
-        response_envelope(self.id, Some(self.receipt.into()))
-    }
-}
-
 impl From<StoreShareResponse> for Envelope {
     fn from(value: StoreShareResponse) -> Self {
-        value.envelope()
-    }
-}
-
-impl EnvelopeDecodable for StoreShareResponse {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, result) = parse_response(envelope)?;
-        Ok(Self::new(id, result.try_into()?))
+        value.receipt.to_envelope().into_success_response(value.id)
     }
 }
 
 impl TryFrom<Envelope> for StoreShareResponse {
-    type Error = anyhow::Error;
+    type Error = Error;
 
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
+    fn try_from(envelope: Envelope) -> Result<Self> {
+        let (result, id) = envelope.parse_success_response(None)?;
+        Ok(Self::new(id, result.try_into()?))
     }
 }
-
-impl EnvelopeCodable for StoreShareResponse {}
 
 impl std::fmt::Display for StoreShareResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -178,28 +154,28 @@ mod tests {
     #[test]
     fn test_request() {
         let private_key = PrivateKeyBase::new();
-        let key = private_key.public_keys();
+        let key = private_key.public_key();
 
-        let request = StoreShareRequest::new_opt(id(), key, Bytes::from_static(b"data"));
-        let request_envelope = request.clone().envelope();
+        let request = StoreShareRequest::from_fields(id(), key, Bytes::from_static(b"data"));
+        let request_envelope = request.to_envelope();
         assert_eq!(request_envelope.format(),
         indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"storeShare"» [
                 ❰"data"❱: Bytes(4)
-                ❰"key"❱: PublicKeyBase
             ]
+            'senderPublicKey': PublicKeyBase
         ]
         "#}.trim()
         );
-        let decoded = StoreShareRequest::try_from(request_envelope).unwrap();
+        let decoded = StoreShareRequest::try_from(&request_envelope).unwrap();
         assert_eq!(request, decoded);
     }
 
     #[test]
     fn test_response() {
         let response = StoreShareResponse::new(id(), receipt_1());
-        let response_envelope = response.clone().envelope();
+        let response_envelope = response.to_envelope();
         assert_eq!(response_envelope.format(),
         indoc! {r#"
         response(ARID(8712dfac)) [

@@ -1,9 +1,8 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
+use anyhow::{Error, Result};
 
 use crate::{FINISH_RECOVERY_FUNCTION, RECOVERY_CONTINUATION_PARAM, util::{Abbrev, FlankedFunction}};
-
-use super::{parse_response, request_body, request_envelope, response_envelope};
 
 //
 // Request
@@ -17,20 +16,25 @@ pub struct FinishRecoveryRequest {
 }
 
 impl FinishRecoveryRequest {
+    pub fn from_fields(id: ARID, key: PublicKeyBase, continuation: Envelope) -> Self {
+        Self {
+            id,
+            key,
+            continuation,
+        }
+    }
+
     pub fn new(key: impl AsRef<PublicKeyBase>, continuation: Envelope) -> Self {
-        Self::new_opt(
+        Self::from_fields(
             ARID::new(),
             key.as_ref().clone(),
             continuation,
         )
     }
 
-    pub fn new_opt(id: ARID, key: PublicKeyBase, continuation: Envelope) -> Self {
-        Self {
-            id,
-            key,
-            continuation,
-        }
+    pub fn from_body(id: ARID, key: PublicKeyBase, body: Envelope) -> Result<Self> {
+        let continuation = body.object_for_parameter(RECOVERY_CONTINUATION_PARAM)?;
+        Ok(Self::from_fields(id, key, continuation))
     }
 
     pub fn id(&self) -> &ARID {
@@ -46,37 +50,22 @@ impl FinishRecoveryRequest {
     }
 }
 
-impl EnvelopeEncodable for FinishRecoveryRequest {
-    fn envelope(self) -> Envelope {
-        let body = request_body(FINISH_RECOVERY_FUNCTION, self.key)
-            .add_parameter(RECOVERY_CONTINUATION_PARAM, self.continuation);
-        request_envelope(self.id, body)
-    }
-}
-
 impl From<FinishRecoveryRequest> for Envelope {
     fn from(value: FinishRecoveryRequest) -> Self {
-        value.envelope()
-    }
-}
-
-impl EnvelopeDecodable for FinishRecoveryRequest {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, key, body) = super::parse_request(FINISH_RECOVERY_FUNCTION, envelope)?;
-        let continuation = body.object_for_parameter(RECOVERY_CONTINUATION_PARAM)?;
-        Ok(Self::new_opt(id, key, continuation))
+        Envelope::new_function(FINISH_RECOVERY_FUNCTION)
+            .add_parameter(RECOVERY_CONTINUATION_PARAM, &value.continuation)
+            .into_transaction_request(value.id(), &value.key)
     }
 }
 
 impl TryFrom<Envelope> for FinishRecoveryRequest {
-    type Error = anyhow::Error;
+    type Error = Error;
 
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
+    fn try_from(envelope: Envelope) -> Result<Self> {
+        let (id, key, body, _) = envelope.parse_transaction_request(Some(&FINISH_RECOVERY_FUNCTION))?;
+        Self::from_body(id, key, body)
     }
 }
-
-impl EnvelopeCodable for FinishRecoveryRequest {}
 
 impl PartialEq for FinishRecoveryRequest {
     fn eq(&self, other: &Self) -> bool {
@@ -101,63 +90,6 @@ impl std::fmt::Display for FinishRecoveryRequest {
     }
 }
 
-//
-// Response
-//
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FinishRecoveryResponse {
-    id: ARID,
-}
-
-impl FinishRecoveryResponse {
-    pub fn new(id: ARID) -> Self {
-        Self { id }
-    }
-
-    pub fn id(&self) -> &ARID {
-        self.id.as_ref()
-    }
-}
-
-impl EnvelopeEncodable for FinishRecoveryResponse {
-    fn envelope(self) -> Envelope {
-        response_envelope(self.id, None)
-    }
-}
-
-impl From<FinishRecoveryResponse> for Envelope {
-    fn from(value: FinishRecoveryResponse) -> Self {
-        value.envelope()
-    }
-}
-
-impl EnvelopeDecodable for FinishRecoveryResponse {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, _result) = parse_response(envelope)?;
-        Ok(Self::new(id))
-    }
-}
-
-impl TryFrom<Envelope> for FinishRecoveryResponse {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
-    }
-}
-
-impl EnvelopeCodable for FinishRecoveryResponse {}
-
-impl std::fmt::Display for FinishRecoveryResponse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}: {} OK",
-            self.id().abbrev(),
-            "finishRecovery".flanked_function()
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use bc_components::PrivateKeyBase;
@@ -175,42 +107,25 @@ mod tests {
     #[test]
     fn test_request() {
         let private_key = PrivateKeyBase::new();
-        let key = private_key.public_keys();
+        let key = private_key.public_key();
 
         let continuation = Envelope::new("Continuation");
 
-        let request = FinishRecoveryRequest::new_opt(id(), key, continuation);
-        let request_envelope = request.clone().envelope();
+        let request = FinishRecoveryRequest::from_fields(id(), key, continuation);
+        let request_envelope = request.to_envelope();
         assert_eq!(
             request_envelope.format(),
             indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"finishRecovery"» [
-                ❰"key"❱: PublicKeyBase
                 ❰"recoveryContinuation"❱: "Continuation"
             ]
+            'senderPublicKey': PublicKeyBase
         ]
         "#}
             .trim()
         );
-        let decoded = FinishRecoveryRequest::try_from(request_envelope).unwrap();
+        let decoded = request_envelope.try_into().unwrap();
         assert_eq!(request, decoded);
-    }
-
-    #[test]
-    fn test_response() {
-        let response = FinishRecoveryResponse::new(id());
-        let response_envelope = response.clone().envelope();
-        assert_eq!(
-            response_envelope.format(),
-            indoc! {r#"
-        response(ARID(8712dfac)) [
-            'result': 'OK'
-        ]
-        "#}
-            .trim()
-        );
-        let decoded = FinishRecoveryResponse::try_from(response_envelope).unwrap();
-        assert_eq!(response, decoded);
     }
 }

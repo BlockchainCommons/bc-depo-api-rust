@@ -3,10 +3,9 @@ use std::collections::{HashMap, HashSet};
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 use bytes::Bytes;
+use anyhow::{Error, Result};
 
 use crate::{receipt::Receipt, GET_SHARES_FUNCTION, RECEIPT_PARAM, util::{Abbrev, FlankedFunction}};
-
-use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
 //
 // Request
@@ -20,19 +19,28 @@ pub struct GetSharesRequest {
 }
 
 impl GetSharesRequest {
+    pub fn from_fields(id: ARID, key: PublicKeyBase, receipts: HashSet<Receipt>) -> Self {
+        Self { id, key, receipts }
+    }
+
     pub fn new<'a>(
         key: impl AsRef<PublicKeyBase>,
         receipts: impl IntoIterator<Item = &'a Receipt>,
     ) -> Self {
-        Self::new_opt(
+        Self::from_fields(
             ARID::new(),
             key.as_ref().clone(),
             receipts.into_iter().cloned().collect(),
         )
     }
 
-    pub fn new_opt(id: ARID, key: PublicKeyBase, receipts: HashSet<Receipt>) -> Self {
-        Self { id, key, receipts }
+    pub fn from_body(id: ARID, key: PublicKeyBase, body: Envelope) -> Result<Self> {
+        let receipts = body
+            .objects_for_parameter(RECEIPT_PARAM)
+            .into_iter()
+            .map(|e| e.try_into())
+            .collect::<Result<HashSet<Receipt>>>()?;
+        Ok(Self::from_fields(id, key, receipts))
     }
 
     pub fn id(&self) -> &ARID {
@@ -48,43 +56,25 @@ impl GetSharesRequest {
     }
 }
 
-impl EnvelopeEncodable for GetSharesRequest {
-    fn envelope(self) -> Envelope {
-        let mut body = request_body(GET_SHARES_FUNCTION, self.key);
-        for receipt in self.receipts {
-            body = body.add_parameter(RECEIPT_PARAM, receipt);
-        }
-        request_envelope(self.id, body)
-    }
-}
-
 impl From<GetSharesRequest> for Envelope {
     fn from(value: GetSharesRequest) -> Self {
-        value.envelope()
-    }
-}
-
-impl EnvelopeDecodable for GetSharesRequest {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, key, body) = parse_request(GET_SHARES_FUNCTION, envelope)?;
-        let receipts = body
-            .objects_for_parameter(RECEIPT_PARAM)
-            .into_iter()
-            .map(|e| e.try_into())
-            .collect::<anyhow::Result<HashSet<Receipt>>>()?;
-        Ok(Self::new_opt(id, key, receipts))
+        let mut body = Envelope::new_function(GET_SHARES_FUNCTION);
+        let id = value.id().clone();
+        for receipt in value.receipts.into_iter() {
+            body = body.add_parameter(RECEIPT_PARAM, receipt);
+        }
+        body.into_transaction_request(id, &value.key)
     }
 }
 
 impl TryFrom<Envelope> for GetSharesRequest {
-    type Error = anyhow::Error;
+    type Error = Error;
 
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
+    fn try_from(envelope: Envelope) -> Result<Self> {
+        let (id, key, body, _) = envelope.parse_transaction_request(Some(&GET_SHARES_FUNCTION))?;
+        Self::from_body(id, key, body)
     }
 }
-
-impl EnvelopeCodable for GetSharesRequest {}
 
 impl std::fmt::Display for GetSharesRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -128,44 +118,31 @@ impl GetSharesResponse {
     }
 }
 
-impl EnvelopeEncodable for GetSharesResponse {
-    fn envelope(self) -> Envelope {
-        let mut result = known_values::OK_VALUE.envelope();
-        for (receipt, data) in self.receipt_to_data {
-            result = result.add_assertion(receipt, data);
-        }
-        response_envelope(self.id, Some(result))
-    }
-}
-
 impl From<GetSharesResponse> for Envelope {
     fn from(value: GetSharesResponse) -> Self {
-        value.envelope()
+        let mut result = known_values::OK_VALUE.to_envelope();
+        for (receipt, data) in value.receipt_to_data {
+            result = result.add_assertion(receipt, data);
+        }
+        result.into_success_response(value.id)
     }
 }
 
-impl EnvelopeDecodable for GetSharesResponse {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, result) = parse_response(envelope)?;
+impl TryFrom<Envelope> for GetSharesResponse {
+    type Error = Error;
+
+    fn try_from(envelope: Envelope) -> Result<Self> {
+        let (result, id) = envelope.parse_success_response(None)?;
         let mut receipt_to_data = HashMap::new();
         for assertion in result.assertions() {
-            let receipt: Receipt = assertion.expect_predicate()?.try_into()?;
-            let data: Bytes = assertion.expect_object()?.try_into()?;
+            let receipt: Receipt = assertion.try_predicate()?.try_into()?;
+            // let receipt: Receipt = (&assertion.try_predicate()?).try_into()?;
+            let data: Bytes = assertion.try_object()?.try_into()?;
             receipt_to_data.insert(receipt, data);
         }
         Ok(Self::new(id, receipt_to_data))
     }
 }
-
-impl TryFrom<Envelope> for GetSharesResponse {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
-    }
-}
-
-impl EnvelopeCodable for GetSharesResponse {}
 
 impl std::fmt::Display for GetSharesResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -217,18 +194,17 @@ mod tests {
     #[test]
     fn test_request() {
         let private_key = PrivateKeyBase::new();
-        let key = private_key.public_keys();
+        let key = private_key.public_key();
 
         let receipts = vec![receipt_1(), receipt_2()].into_iter().collect();
 
-        let request = GetSharesRequest::new_opt(id(), key, receipts);
-        let request_envelope = request.clone().envelope();
+        let request = GetSharesRequest::from_fields(id(), key, receipts);
+        let request_envelope = request.to_envelope();
         assert_eq!(
             request_envelope.format(),
             indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"getShares"» [
-                ❰"key"❱: PublicKeyBase
                 ❰"receipt"❱: Bytes(32) [
                     'isA': "Receipt"
                 ]
@@ -236,11 +212,12 @@ mod tests {
                     'isA': "Receipt"
                 ]
             ]
+            'senderPublicKey': PublicKeyBase
         ]
         "#}
             .trim()
         );
-        let decoded = GetSharesRequest::try_from(request_envelope).unwrap();
+        let decoded = request_envelope.try_into().unwrap();
         assert_eq!(request, decoded);
     }
 
@@ -250,7 +227,7 @@ mod tests {
             .into_iter()
             .collect();
         let response = GetSharesResponse::new(id(), receipts_to_data);
-        let response_envelope = response.clone().envelope();
+        let response_envelope = response.to_envelope();
         assert_eq!(
             response_envelope.format(),
             indoc! {r#"

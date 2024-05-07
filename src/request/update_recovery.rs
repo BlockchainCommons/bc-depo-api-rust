@@ -1,9 +1,8 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
+use anyhow::{Error, Result};
 
 use crate::{UPDATE_RECOVERY_FUNCTION, RECOVERY_METHOD_PARAM, util::{Abbrev, FlankedFunction}};
-
-use super::{request_body, request_envelope, parse_request, response_envelope, parse_response};
 
 //
 // Request
@@ -17,23 +16,33 @@ pub struct UpdateRecoveryRequest {
 }
 
 impl UpdateRecoveryRequest {
+    pub fn from_fields(id: ARID, key: PublicKeyBase, recovery: Option<String>) -> Self {
+        Self {
+            id,
+            key,
+            recovery,
+        }
+    }
+
     pub fn new(
         key: impl AsRef<PublicKeyBase>,
         recovery: Option<&str>,
     ) -> Self {
-        Self::new_opt(
+        Self::from_fields(
             ARID::new(),
             key.as_ref().clone(),
             recovery.map(|s| s.to_string()),
         )
     }
 
-    pub fn new_opt(id: ARID, key: PublicKeyBase, recovery: Option<String>) -> Self {
-        Self {
-            id,
-            key,
-            recovery,
-        }
+    pub fn from_body(id: ARID, key: PublicKeyBase, body: Envelope) -> Result<Self> {
+        let recovery_envelope = body.object_for_parameter(RECOVERY_METHOD_PARAM)?;
+        let recovery: Option<String> = if recovery_envelope.is_null() {
+            None
+        } else {
+            Some(recovery_envelope.extract_subject()?)
+        };
+        Ok(Self::from_fields(id, key, recovery))
     }
 
     pub fn id(&self) -> &ARID {
@@ -49,47 +58,27 @@ impl UpdateRecoveryRequest {
     }
 }
 
-impl EnvelopeEncodable for UpdateRecoveryRequest {
-    fn envelope(self) -> Envelope {
-        let value = if let Some(recovery) = self.recovery {
-            recovery.envelope()
+impl From<UpdateRecoveryRequest> for Envelope {
+    fn from(value: UpdateRecoveryRequest) -> Self {
+        let method = if let Some(recovery) = value.recovery.clone() {
+            recovery.to_envelope()
         } else {
             Envelope::null()
         };
-        let body = request_body(UPDATE_RECOVERY_FUNCTION, self.key)
-            .add_parameter(RECOVERY_METHOD_PARAM, value);
-        request_envelope(self.id, body)
+        Envelope::new_function(UPDATE_RECOVERY_FUNCTION)
+            .add_parameter(RECOVERY_METHOD_PARAM, method)
+            .into_transaction_request(value.id(), &value.key)
     }
 }
 
-impl From<UpdateRecoveryRequest> for Envelope {
-    fn from(value: UpdateRecoveryRequest) -> Self {
-        value.envelope()
+impl TryFrom<&Envelope> for UpdateRecoveryRequest {
+    type Error = Error;
+
+    fn try_from(envelope: &Envelope) -> Result<Self> {
+        let (id, key, body, _) = envelope.parse_transaction_request(Some(&UPDATE_RECOVERY_FUNCTION))?;
+        Self::from_body(id, key, body)
     }
 }
-
-impl EnvelopeDecodable for UpdateRecoveryRequest {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, key, body) = parse_request(UPDATE_RECOVERY_FUNCTION, envelope)?;
-        let recovery_envelope = body.object_for_parameter(RECOVERY_METHOD_PARAM)?;
-        let recovery: Option<String> = if recovery_envelope.is_null() {
-            None
-        } else {
-            Some(recovery_envelope.extract_subject()?)
-        };
-        Ok(Self::new_opt(id, key, recovery))
-    }
-}
-
-impl TryFrom<Envelope> for UpdateRecoveryRequest {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
-    }
-}
-
-impl EnvelopeCodable for UpdateRecoveryRequest {}
 
 impl std::fmt::Display for UpdateRecoveryRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -98,65 +87,6 @@ impl std::fmt::Display for UpdateRecoveryRequest {
             "updateRecovery".flanked_function(),
             self.key().abbrev(),
             self.recovery().abbrev()
-        ))
-    }
-}
-
-//
-// Response
-//
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UpdateRecoveryResponse {
-    id: ARID,
-}
-
-impl UpdateRecoveryResponse {
-    pub fn new(id: ARID) -> Self {
-        Self {
-            id,
-        }
-    }
-
-    pub fn id(&self) -> &ARID {
-        self.id.as_ref()
-    }
-}
-
-impl EnvelopeEncodable for UpdateRecoveryResponse {
-    fn envelope(self) -> Envelope {
-        response_envelope(self.id, None)
-    }
-}
-
-impl From<UpdateRecoveryResponse> for Envelope {
-    fn from(value: UpdateRecoveryResponse) -> Self {
-        value.envelope()
-    }
-}
-
-impl EnvelopeDecodable for UpdateRecoveryResponse {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, _result) = parse_response(envelope)?;
-        Ok(Self::new(id))
-    }
-}
-
-impl TryFrom<Envelope> for UpdateRecoveryResponse {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
-    }
-}
-
-impl EnvelopeCodable for UpdateRecoveryResponse {}
-
-impl std::fmt::Display for UpdateRecoveryResponse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}: {} OK",
-            self.id().abbrev(),
-            "updateRecovery".flanked_function()
         ))
     }
 }
@@ -175,53 +105,38 @@ mod tests {
     #[test]
     fn test_request() {
         let private_key = PrivateKeyBase::new();
-        let key = private_key.public_keys();
+        let key = private_key.public_key();
 
         let recovery = "recovery".to_string();
 
-        let request = UpdateRecoveryRequest::new_opt(id(), key.clone(), Some(recovery));
-        let request_envelope = request.clone().envelope();
+        let request = UpdateRecoveryRequest::from_fields(id(), key.clone(), Some(recovery));
+        let request_envelope = request.to_envelope();
         assert_eq!(request_envelope.format(),
         indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"updateRecovery"» [
-                ❰"key"❱: PublicKeyBase
                 ❰"recoveryMethod"❱: "recovery"
             ]
+            'senderPublicKey': PublicKeyBase
         ]
         "#}.trim()
         );
-        let decoded = UpdateRecoveryRequest::try_from(request_envelope).unwrap();
+        let decoded = UpdateRecoveryRequest::try_from(&request_envelope).unwrap();
         assert_eq!(request, decoded);
 
-        let request = UpdateRecoveryRequest::new_opt(id(), key, None);
-        let request_envelope = request.clone().envelope();
+        let request = UpdateRecoveryRequest::from_fields(id(), key, None);
+        let request_envelope = request.to_envelope();
         assert_eq!(request_envelope.format(),
         indoc! {r#"
         request(ARID(8712dfac)) [
             'body': «"updateRecovery"» [
-                ❰"key"❱: PublicKeyBase
                 ❰"recoveryMethod"❱: null
             ]
+            'senderPublicKey': PublicKeyBase
         ]
         "#}.trim()
         );
-        let decoded = UpdateRecoveryRequest::try_from(request_envelope).unwrap();
+        let decoded = UpdateRecoveryRequest::try_from(&request_envelope).unwrap();
         assert_eq!(request, decoded);
-    }
-
-    #[test]
-    fn test_response() {
-        let response = UpdateRecoveryResponse::new(id());
-        let response_envelope = response.clone().envelope();
-        assert_eq!(response_envelope.format(),
-        indoc! {r#"
-        response(ARID(8712dfac)) [
-            'result': 'OK'
-        ]
-        "#}.trim()
-        );
-        let decoded = UpdateRecoveryResponse::try_from(response_envelope).unwrap();
-        assert_eq!(response, decoded);
     }
 }

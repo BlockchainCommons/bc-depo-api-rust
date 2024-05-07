@@ -1,5 +1,7 @@
-use bc_components::{ARID, Digest};
+use bc_components::ARID;
 use bc_envelope::prelude::*;
+use bytes::Bytes;
+use anyhow::{Error, Result};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Receipt(Digest);
@@ -26,38 +28,23 @@ impl std::fmt::Debug for Receipt {
     }
 }
 
-impl EnvelopeEncodable for Receipt {
-    fn envelope(self) -> Envelope {
-        Envelope::new(CBOR::byte_string(self.0))
+impl From<Receipt> for Envelope {
+    fn from(receipt: Receipt) -> Self {
+        Envelope::new(CBOR::to_byte_string(receipt.0.clone()))
             .add_type(RECEIPT_TYPE)
     }
 }
 
-impl From<Receipt> for Envelope {
-    fn from(receipt: Receipt) -> Self {
-        receipt.envelope()
-    }
-}
+impl TryFrom<Envelope> for Receipt {
+    type Error = Error;
 
-impl EnvelopeDecodable for Receipt {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        envelope.clone().check_type_envelope(RECEIPT_TYPE)?;
-        let cbor: CBOR = envelope.extract_subject()?;
-        let bytes = cbor.expect_byte_string()?;
+    fn try_from(envelope: Envelope) -> Result<Self> {
+        envelope.check_type_envelope(RECEIPT_TYPE)?;
+        let bytes: Bytes = envelope.extract_subject()?;
         let digest = Digest::from_data_ref(&bytes)?;
         Ok(Self(digest))
     }
 }
-
-impl TryFrom<Envelope> for Receipt {
-    type Error = anyhow::Error;
-
-    fn try_from(envelope: Envelope) -> Result<Self, Self::Error> {
-        Self::from_envelope(envelope)
-    }
-}
-
-impl EnvelopeCodable for Receipt { }
 
 #[cfg(test)]
 mod tests {
@@ -71,7 +58,7 @@ mod tests {
         let receipt = Receipt::new(&user_id, b"data");
         assert_eq!(format!("{:?}", receipt), "Receipt(12bd077763220d3223f6cd74f4d51103f29c7ba70b68765cd8ee13c84ee50152)");
 
-        let envelope = receipt.clone().envelope();
+        let envelope = receipt.clone().to_envelope();
         assert_eq!(format!("{}", envelope.ur_string()), "ur:envelope/lftpsohdcxbgryatktiacpbteycnynsnjywktlbyaxwznskgosbdiskohhtpwybwspglvwadgmoyadtpsoiogmihiaihinjojyamdwplrf");
         assert_eq!(envelope.format(),
         indoc!{r#"
@@ -80,7 +67,7 @@ mod tests {
         ]
         "#}.trim());
 
-        let receipt_2 = Receipt::from_envelope(envelope.clone()).unwrap();
+        let receipt_2: Receipt = envelope.try_into().unwrap();
         assert_eq!(receipt, receipt_2);
     }
 }

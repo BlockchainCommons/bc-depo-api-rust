@@ -1,9 +1,8 @@
 use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
+use anyhow::{Error, Result};
 
 use crate::{GET_RECOVERY_FUNCTION, util::{Abbrev, FlankedFunction}};
-
-use super::{parse_request, parse_response, request_body, request_envelope, response_envelope};
 
 //
 // Request
@@ -16,12 +15,16 @@ pub struct GetRecoveryRequest {
 }
 
 impl GetRecoveryRequest {
-    pub fn new(key: impl AsRef<PublicKeyBase>) -> Self {
-        Self::new_opt(ARID::new(), key.as_ref().clone())
+    pub fn from_fields(id: ARID, key: PublicKeyBase) -> Self {
+        Self { id, key }
     }
 
-    pub fn new_opt(id: ARID, key: PublicKeyBase) -> Self {
-        Self { id, key }
+    pub fn new(key: impl AsRef<PublicKeyBase>) -> Self {
+        Self::from_fields(ARID::new(), key.as_ref().clone())
+    }
+
+    pub fn from_body(id: ARID, key: PublicKeyBase, _body: Envelope) -> Result<Self> {
+        Ok(Self::from_fields(id, key))
     }
 
     pub fn id(&self) -> &ARID {
@@ -33,34 +36,21 @@ impl GetRecoveryRequest {
     }
 }
 
-impl EnvelopeEncodable for GetRecoveryRequest {
-    fn envelope(self) -> Envelope {
-        request_envelope(self.id, request_body(GET_RECOVERY_FUNCTION, self.key))
-    }
-}
-
 impl From<GetRecoveryRequest> for Envelope {
     fn from(value: GetRecoveryRequest) -> Self {
-        value.envelope()
-    }
-}
-
-impl EnvelopeDecodable for GetRecoveryRequest {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, key, _body) = parse_request(GET_RECOVERY_FUNCTION, envelope)?;
-        Ok(Self::new_opt(id, key))
+        Envelope::new_function(GET_RECOVERY_FUNCTION)
+            .into_transaction_request(value.id, value.key)
     }
 }
 
 impl TryFrom<Envelope> for GetRecoveryRequest {
-    type Error = anyhow::Error;
+    type Error = Error;
 
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
+    fn try_from(envelope: Envelope) -> Result<Self> {
+        let (id, key, body, _) = envelope.parse_transaction_request(Some(&GET_RECOVERY_FUNCTION))?;
+        Self::from_body(id, key, body)
     }
 }
-
-impl EnvelopeCodable for GetRecoveryRequest {}
 
 impl std::fmt::Display for GetRecoveryRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -96,26 +86,22 @@ impl GetRecoveryResponse {
     }
 }
 
-impl EnvelopeEncodable for GetRecoveryResponse {
-    fn envelope(self) -> Envelope {
-        let result: Envelope = if let Some(recovery) = self.recovery {
-            recovery.into()
+impl From<GetRecoveryResponse> for Envelope {
+    fn from(value: GetRecoveryResponse) -> Self {
+        let result: Envelope = if let Some(recovery) = value.recovery {
+            recovery.to_envelope()
         } else {
             Envelope::null()
         };
-        response_envelope(self.id, Some(result))
+        result.into_success_response(value.id)
     }
 }
 
-impl From<GetRecoveryResponse> for Envelope {
-    fn from(value: GetRecoveryResponse) -> Self {
-        value.envelope()
-    }
-}
+impl TryFrom<Envelope> for GetRecoveryResponse {
+    type Error = Error;
 
-impl EnvelopeDecodable for GetRecoveryResponse {
-    fn from_envelope(envelope: Envelope) -> anyhow::Result<Self> {
-        let (id, result) = parse_response(envelope.clone())?;
+    fn try_from(envelope: Envelope) -> Result<Self> {
+        let (result, id) = envelope.parse_success_response(None)?;
         let recovery = if result.is_null() {
             None
         } else {
@@ -124,16 +110,6 @@ impl EnvelopeDecodable for GetRecoveryResponse {
         Ok(Self::new(id, recovery))
     }
 }
-
-impl TryFrom<Envelope> for GetRecoveryResponse {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Envelope) -> anyhow::Result<Self> {
-        Self::from_envelope(value)
-    }
-}
-
-impl EnvelopeCodable for GetRecoveryResponse {}
 
 impl std::fmt::Display for GetRecoveryResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -162,29 +138,28 @@ mod tests {
     #[test]
     fn test_request() {
         let private_key = PrivateKeyBase::new();
-        let key = private_key.public_keys();
+        let key = private_key.public_key();
 
-        let request = GetRecoveryRequest::new_opt(id(), key);
-        let request_envelope = request.clone().envelope();
+        let request = GetRecoveryRequest::from_fields(id(), key);
+        let request_envelope = request.to_envelope();
         assert_eq!(
             request_envelope.format(),
             indoc! {r#"
         request(ARID(8712dfac)) [
-            'body': «"getRecovery"» [
-                ❰"key"❱: PublicKeyBase
-            ]
+            'body': «"getRecovery"»
+            'senderPublicKey': PublicKeyBase
         ]
         "#}
             .trim()
         );
-        let decoded = GetRecoveryRequest::try_from(request_envelope).unwrap();
+        let decoded = request_envelope.try_into().unwrap();
         assert_eq!(request, decoded);
     }
 
     #[test]
     fn test_response() {
         let response = GetRecoveryResponse::new(id(), Some("Recovery Method".into()));
-        let response_envelope = response.clone().envelope();
+        let response_envelope = response.to_envelope();
         assert_eq!(
             response_envelope.format(),
             indoc! {r#"
@@ -198,7 +173,7 @@ mod tests {
         assert_eq!(response, decoded);
 
         let response = GetRecoveryResponse::new(id(), None);
-        let response_envelope = response.clone().envelope();
+        let response_envelope = response.to_envelope();
         assert_eq!(
             response_envelope.format(),
             indoc! {r#"

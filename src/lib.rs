@@ -40,9 +40,6 @@ pub const UPDATE_RECOVERY_FUNCTION: Function = Function::new_static_named(UPDATE
 pub const DATA_PARAM_NAME: &str = "data";
 pub const DATA_PARAM: Parameter = Parameter::new_static_named(DATA_PARAM_NAME);
 
-pub const KEY_PARAM_NAME: &str = "key";
-pub const KEY_PARAM: Parameter = Parameter::new_static_named(KEY_PARAM_NAME);
-
 pub const NEW_KEY_PARAM_NAME: &str = "newKey";
 pub const NEW_KEY_PARAM: Parameter = Parameter::new_static_named(NEW_KEY_PARAM_NAME);
 

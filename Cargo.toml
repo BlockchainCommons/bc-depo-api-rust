@@ -1,6 +1,6 @@
 [package]
 name = "depo-api"
-version = "0.3.2"
+version = "0.4.0"
 edition = "2021"
 description = "API for the Blockchain Commons Depository ('depo') server."
 authors = ["Blockchain Commons"]
@@ -12,18 +12,10 @@ categories = ["cryptography", "database", "security", "web-programming::http-cli
 documentation = "https://docs.rs/depo-api"
 
 [dependencies]
-dcbor = { version = "^0.13.0", features = ["multithreaded"] }
-# dcbor = { path = "../dcbor", features = ["multithreaded"] }
-
-bc-ur = "^0.3.0"
-# bc-ur = { path = "../bc-ur" }
-
-bc-envelope = { version = "^0.15.0", features = ["multithreaded"] }
-# bc-envelope = { path = "../bc-envelope", features = ["multithreaded"] }
-
-bc-components = "^0.10.0"
-# bc-components = { path = "../bc-components" }
-
+dcbor = { version = "^0.14.0", features = ["multithreaded"] }
+bc-ur = "^0.4.0"
+bc-envelope = { version = "^0.16.0", features = ["multithreaded"] }
+bc-components = "^0.11.0"
 bytes = "^1.5.0"
 anyhow = "^1.0.0"
 hex = "^0.4.3"
