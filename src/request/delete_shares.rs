@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 use anyhow::{Error, Result};
 
@@ -11,94 +10,60 @@ use crate::{receipt::Receipt, DELETE_SHARES_FUNCTION, RECEIPT_PARAM, util::{Abbr
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeleteSharesRequest {
-    id: ARID,
-    key: PublicKeyBase,
-    receipts: HashSet<Receipt>,
-}
+pub struct DeleteShares(HashSet<Receipt>);
 
-impl DeleteSharesRequest {
-    pub fn from_fields(id: ARID, key: PublicKeyBase, receipts: HashSet<Receipt>) -> Self {
-        Self { id, key, receipts }
-    }
-
-    pub fn new<'a>(
-        key: impl AsRef<PublicKeyBase>,
-        receipts: impl IntoIterator<Item = &'a Receipt>,
-    ) -> Self {
-        Self::from_fields(
-            ARID::new(),
-            key.as_ref().clone(),
-            receipts.into_iter().cloned().collect(),
-        )
-    }
-
-    pub fn from_body(id: ARID, key: PublicKeyBase, body: Envelope) -> Result<Self> {
-        let receipts = body
-            .objects_for_parameter(RECEIPT_PARAM)
-            .into_iter()
-            .map(|e| e.try_into())
-            .collect::<Result<HashSet<Receipt>>>()?;
-        Ok(Self::from_fields(id, key, receipts))
-    }
-
-    pub fn id(&self) -> &ARID {
-        self.id.as_ref()
-    }
-
-    pub fn key(&self) -> &PublicKeyBase {
-        &self.key
+impl DeleteShares {
+    pub fn new<I, T>(iterable: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Clone + Into<Receipt>,
+    {
+        Self(iterable.into_iter().map(|item| item.clone().into()).collect())
     }
 
     pub fn receipts(&self) -> &HashSet<Receipt> {
-        &self.receipts
+        &self.0
     }
 }
 
-impl From<DeleteSharesRequest> for Envelope {
-    fn from(value: DeleteSharesRequest) -> Self {
-        let mut body = Envelope::new_function(DELETE_SHARES_FUNCTION);
-        let id = value.id().clone();
-        for receipt in value.receipts.into_iter() {
-            body = body.add_parameter(RECEIPT_PARAM, receipt);
+impl From<DeleteShares> for Expression {
+    fn from(value: DeleteShares) -> Self {
+        let mut expression = Expression::new(DELETE_SHARES_FUNCTION);
+        for receipt in value.0.into_iter() {
+            expression = expression.with_parameter(RECEIPT_PARAM, receipt);
         }
-        body.into_transaction_request(id, &value.key)
+        expression
     }
 }
 
-impl TryFrom<Envelope> for DeleteSharesRequest {
+impl TryFrom<Expression> for DeleteShares {
     type Error = Error;
 
-    fn try_from(envelope: Envelope) -> Result<Self> {
-        let (id, key, body, _) = envelope.parse_transaction_request(Some(&DELETE_SHARES_FUNCTION))?;
-        Self::from_body(id, key, body)
+    fn try_from(expression: Expression) -> Result<Self> {
+        let receipts = expression
+            .objects_for_parameter(RECEIPT_PARAM)
+            .into_iter()
+            .map(|parameter| parameter.try_into())
+            .collect::<Result<HashSet<Receipt>>>()?;
+        Ok(Self::new(receipts))
     }
 }
 
-impl std::fmt::Display for DeleteSharesRequest {
+impl std::fmt::Display for DeleteShares {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}: {} {} key {}",
-            self.id().abbrev(),
+        f.write_fmt(format_args!("{} {}",
             "deleteShares".flanked_function(),
             self.receipts().abbrev(),
-            self.key().abbrev()
         ))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use bc_components::PrivateKeyBase;
+    use bc_components::ARID;
     use indoc::indoc;
 
     use super::*;
-
-    fn id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!(
-            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
-        ))
-        .unwrap()
-    }
 
     fn user_id() -> ARID {
         ARID::from_data_ref(hex_literal::hex!(
@@ -117,31 +82,25 @@ mod tests {
 
     #[test]
     fn test_request() {
-        let private_key = PrivateKeyBase::new();
-        let key = private_key.public_key();
 
-        let receipts = vec![receipt_1(), receipt_2()].into_iter().collect();
+        let receipts = vec![receipt_1(), receipt_2()];
 
-        let request = DeleteSharesRequest::from_fields(id(), key, receipts);
-        let request_envelope = request.to_envelope();
-        assert_eq!(
-            request_envelope.format(),
-            indoc! {r#"
-        request(ARID(8712dfac)) [
-            'body': «"deleteShares"» [
-                ❰"receipt"❱: Bytes(32) [
-                    'isA': "Receipt"
-                ]
-                ❰"receipt"❱: Bytes(32) [
-                    'isA': "Receipt"
-                ]
+        let request = DeleteShares::new(receipts);
+        let expression: Expression = request.clone().into();
+        let request_envelope = expression.to_envelope();
+        // println!("{}", request_envelope.format());
+        assert_eq!(request_envelope.format(), indoc! {r#"
+        «"deleteShares"» [
+            ❰"receipt"❱: Bytes(32) [
+                'isA': "Receipt"
             ]
-            'senderPublicKey': PublicKeyBase
+            ❰"receipt"❱: Bytes(32) [
+                'isA': "Receipt"
+            ]
         ]
-        "#}
-            .trim()
-        );
-        let decoded = request_envelope.try_into().unwrap();
+        "#}.trim());
+        let decoded_expression = Expression::try_from(request_envelope).unwrap();
+        let decoded = DeleteShares::try_from(decoded_expression).unwrap();
         assert_eq!(request, decoded);
     }
 }

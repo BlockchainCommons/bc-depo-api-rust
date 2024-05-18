@@ -1,4 +1,3 @@
-use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 use bytes::Bytes;
 use anyhow::{Error, Result};
@@ -10,68 +9,38 @@ use crate::{STORE_SHARE_FUNCTION, DATA_PARAM, receipt::Receipt, util::{Abbrev, F
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StoreShareRequest {
-    id: ARID,
-    key: PublicKeyBase,
-    data: Bytes,
-}
+pub struct StoreShare(Bytes);
 
-impl StoreShareRequest {
-    pub fn from_fields(id: ARID, key: PublicKeyBase, data: Bytes) -> Self {
-        Self {
-            id,
-            key,
-            data,
-        }
-    }
-
-    pub fn new(key: impl AsRef<PublicKeyBase>, data: impl AsRef<[u8]>) -> Self {
-        Self::from_fields(ARID::new(), key.as_ref().clone(), Bytes::copy_from_slice(data.as_ref()))
-    }
-
-    pub fn from_body(id: ARID, key: PublicKeyBase, body: Envelope) -> Result<Self> {
-        let data: Bytes = body.extract_object_for_parameter(DATA_PARAM)?;
-        Ok(Self::from_fields(id, key, data))
-    }
-
-    pub fn id(&self) -> &ARID {
-        self.id.as_ref()
-    }
-
-    pub fn key(&self) -> &PublicKeyBase {
-        &self.key
+impl StoreShare {
+    pub fn new(data: Bytes) -> Self {
+        Self(data)
     }
 
     pub fn data(&self) -> &Bytes {
-        &self.data
+        &self.0
     }
 }
 
-impl From<StoreShareRequest> for Envelope {
-    fn from(value: StoreShareRequest) -> Self {
-        let id = value.id().clone();
-        Envelope::new_function(STORE_SHARE_FUNCTION)
-            .add_parameter(DATA_PARAM, value.data)
-            .into_transaction_request(id, &value.key)
+impl From<StoreShare> for Expression {
+    fn from(value: StoreShare) -> Self {
+        Expression::new(STORE_SHARE_FUNCTION)
+            .with_parameter(DATA_PARAM, value.0)
     }
 }
 
-impl TryFrom<&Envelope> for StoreShareRequest {
+impl TryFrom<Expression> for StoreShare {
     type Error = Error;
 
-    fn try_from(envelope: &Envelope) -> Result<Self> {
-        let (id, key, body, _) = envelope.parse_transaction_request(Some(&STORE_SHARE_FUNCTION))?;
-        Self::from_body(id, key, body)
+    fn try_from(expression: Expression) -> Result<Self> {
+        Ok(Self::new(expression.extract_object_for_parameter(DATA_PARAM)?))
     }
 }
 
-impl std::fmt::Display for StoreShareRequest {
+impl std::fmt::Display for StoreShare {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}: {} {} key {}",
-            self.id().abbrev(),
+        f.write_fmt(format_args!("{} {}",
             "storeShare".flanked_function(),
             self.data().abbrev(),
-            self.key().abbrev()
         ))
     }
 }
@@ -81,47 +50,43 @@ impl std::fmt::Display for StoreShareRequest {
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StoreShareResponse {
-    id: ARID,
-    receipt: Receipt,
-}
+pub struct StoreShareResult(Receipt);
 
-impl StoreShareResponse {
-    pub fn new(id: ARID, receipt: Receipt) -> Self {
-        Self {
-            id,
-            receipt,
-        }
+impl StoreShareResult {
+    pub fn new(receipt: Receipt) -> Self {
+        Self(receipt)
     }
 
-    pub fn id(&self) -> &ARID {
-        self.id.as_ref()
-    }
-
-    pub fn receipt(&self) -> Receipt {
-        self.receipt.clone()
+    pub fn receipt(&self) -> &Receipt {
+        &self.0
     }
 }
 
-impl From<StoreShareResponse> for Envelope {
-    fn from(value: StoreShareResponse) -> Self {
-        value.receipt.to_envelope().into_success_response(value.id)
+impl From<StoreShareResult> for Envelope {
+    fn from(value: StoreShareResult) -> Self {
+        value.0.into_envelope()
     }
 }
 
-impl TryFrom<Envelope> for StoreShareResponse {
+impl TryFrom<Envelope> for StoreShareResult {
     type Error = Error;
 
     fn try_from(envelope: Envelope) -> Result<Self> {
-        let (result, id) = envelope.parse_success_response(None)?;
-        Ok(Self::new(id, result.try_into()?))
+        Ok(Self::new(Receipt::try_from(envelope)?))
     }
 }
 
-impl std::fmt::Display for StoreShareResponse {
+impl TryFrom<SealedResponse> for StoreShareResult {
+    type Error = Error;
+
+    fn try_from(response: SealedResponse) -> Result<Self> {
+        response.result()?.clone().try_into()
+    }
+}
+
+impl std::fmt::Display for StoreShareResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}: {} OK receipt {}",
-            self.id().abbrev(),
+        f.write_fmt(format_args!("{} OK receipt {}",
             "storeShare".flanked_function(),
             self.receipt().abbrev()
         ))
@@ -130,62 +95,44 @@ impl std::fmt::Display for StoreShareResponse {
 
 #[cfg(test)]
 mod tests {
-    use bc_components::PrivateKeyBase;
+    use bc_components::ARID;
     use indoc::indoc;
 
     use super::*;
 
-    fn id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap()
-    }
-
-    fn user_id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap()
-    }
-
-    fn data_1() -> Bytes {
-        Bytes::from_static(b"data_1")
-    }
-
-    fn receipt_1() -> Receipt {
-        Receipt::new(&user_id(), data_1())
-    }
-
     #[test]
     fn test_request() {
-        let private_key = PrivateKeyBase::new();
-        let key = private_key.public_key();
-
-        let request = StoreShareRequest::from_fields(id(), key, Bytes::from_static(b"data"));
-        let request_envelope = request.to_envelope();
+        let data = Bytes::from_static(b"data");
+        let request = StoreShare::new(data);
+        let expression: Expression = request.clone().into();
+        let request_envelope = expression.to_envelope();
+        // println!("{}", request_envelope.format());
         assert_eq!(request_envelope.format(),
         indoc! {r#"
-        request(ARID(8712dfac)) [
-            'body': «"storeShare"» [
-                ❰"data"❱: Bytes(4)
-            ]
-            'senderPublicKey': PublicKeyBase
+        «"storeShare"» [
+            ❰"data"❱: Bytes(4)
         ]
-        "#}.trim()
-        );
-        let decoded = StoreShareRequest::try_from(&request_envelope).unwrap();
+        "#}.trim());
+        let decoded_expression = Expression::try_from(request_envelope).unwrap();
+        let decoded = StoreShare::try_from(decoded_expression).unwrap();
         assert_eq!(request, decoded);
     }
 
     #[test]
     fn test_response() {
-        let response = StoreShareResponse::new(id(), receipt_1());
-        let response_envelope = response.to_envelope();
-        assert_eq!(response_envelope.format(),
+        let user_id = ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap();
+        let data = b"data";
+        let receipt = Receipt::new(&user_id, data);
+        let result = StoreShareResult::new(receipt);
+        let result_envelope = result.to_envelope();
+        // println!("{}", result_envelope.format());
+        assert_eq!(result_envelope.format(),
         indoc! {r#"
-        response(ARID(8712dfac)) [
-            'result': Bytes(32) [
-                'isA': "Receipt"
-            ]
+        Bytes(32) [
+            'isA': "Receipt"
         ]
-        "#}.trim()
-        );
-        let decoded = StoreShareResponse::try_from(response_envelope).unwrap();
-        assert_eq!(response, decoded);
+        "#}.trim());
+        let decoded =StoreShareResult::try_from(result_envelope).unwrap();
+        assert_eq!(result, decoded);
     }
 }

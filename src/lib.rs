@@ -47,7 +47,6 @@ pub const RECEIPT_PARAM_NAME: &str = "receipt";
 pub const RECEIPT_PARAM: Parameter = Parameter::new_static_named(RECEIPT_PARAM_NAME);
 
 pub const RECOVERY_CONTINUATION_PARAM_NAME: &str = "recoveryContinuation";
-pub const RECOVERY_CONTINUATION_PARAM: Parameter = Parameter::new_static_named(RECOVERY_CONTINUATION_PARAM_NAME);
 
 pub const RECOVERY_METHOD_PARAM_NAME: &str = "recoveryMethod";
 pub const RECOVERY_METHOD_PARAM: Parameter = Parameter::new_static_named(RECOVERY_METHOD_PARAM_NAME);

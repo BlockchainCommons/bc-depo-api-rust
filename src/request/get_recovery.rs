@@ -1,4 +1,3 @@
-use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 use anyhow::{Error, Result};
 
@@ -9,55 +8,38 @@ use crate::{GET_RECOVERY_FUNCTION, util::{Abbrev, FlankedFunction}};
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetRecoveryRequest {
-    id: ARID,
-    key: PublicKeyBase,
-}
+pub struct GetRecovery ();
 
-impl GetRecoveryRequest {
-    pub fn from_fields(id: ARID, key: PublicKeyBase) -> Self {
-        Self { id, key }
-    }
-
-    pub fn new(key: impl AsRef<PublicKeyBase>) -> Self {
-        Self::from_fields(ARID::new(), key.as_ref().clone())
-    }
-
-    pub fn from_body(id: ARID, key: PublicKeyBase, _body: Envelope) -> Result<Self> {
-        Ok(Self::from_fields(id, key))
-    }
-
-    pub fn id(&self) -> &ARID {
-        &self.id
-    }
-
-    pub fn key(&self) -> &PublicKeyBase {
-        &self.key
+impl GetRecovery {
+    pub fn new() -> Self {
+        Self ()
     }
 }
 
-impl From<GetRecoveryRequest> for Envelope {
-    fn from(value: GetRecoveryRequest) -> Self {
-        Envelope::new_function(GET_RECOVERY_FUNCTION)
-            .into_transaction_request(value.id, value.key)
+impl Default for GetRecovery {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
-impl TryFrom<Envelope> for GetRecoveryRequest {
+impl From<GetRecovery> for Expression {
+    fn from(_: GetRecovery) -> Self {
+        Expression::new(GET_RECOVERY_FUNCTION)
+    }
+}
+
+impl TryFrom<Expression> for GetRecovery {
     type Error = Error;
 
-    fn try_from(envelope: Envelope) -> Result<Self> {
-        let (id, key, body, _) = envelope.parse_transaction_request(Some(&GET_RECOVERY_FUNCTION))?;
-        Self::from_body(id, key, body)
+    fn try_from(_: Expression) -> Result<Self> {
+        Ok(Self::new())
     }
 }
 
-impl std::fmt::Display for GetRecoveryRequest {
+impl std::fmt::Display for GetRecovery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}: {} key {}",
-            self.id().abbrev(),
+        f.write_fmt(format_args!("{}",
             "getRecovery".flanked_function(),
-            self.key().abbrev()
         ))
     }
 }
@@ -67,54 +49,48 @@ impl std::fmt::Display for GetRecoveryRequest {
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetRecoveryResponse {
-    id: ARID,
-    recovery: Option<String>,
-}
+pub struct GetRecoveryResult(Option<String>);
 
-impl GetRecoveryResponse {
-    pub fn new(id: ARID, recovery: Option<String>) -> Self {
-        Self { id, recovery }
-    }
-
-    pub fn id(&self) -> &ARID {
-        &self.id
+impl GetRecoveryResult {
+    pub fn new(recovery: Option<String>) -> Self {
+        Self(recovery)
     }
 
     pub fn recovery(&self) -> Option<&str> {
-        self.recovery.as_deref()
+        self.0.as_deref()
     }
 }
 
-impl From<GetRecoveryResponse> for Envelope {
-    fn from(value: GetRecoveryResponse) -> Self {
-        let result: Envelope = if let Some(recovery) = value.recovery {
-            recovery.to_envelope()
-        } else {
-            Envelope::null()
-        };
-        result.into_success_response(value.id)
+impl From<GetRecoveryResult> for Envelope {
+    fn from(value: GetRecoveryResult) -> Self {
+        value.recovery().map_or_else(Envelope::null, Envelope::new)
     }
 }
 
-impl TryFrom<Envelope> for GetRecoveryResponse {
+impl TryFrom<Envelope> for GetRecoveryResult {
     type Error = Error;
 
     fn try_from(envelope: Envelope) -> Result<Self> {
-        let (result, id) = envelope.parse_success_response(None)?;
-        let recovery = if result.is_null() {
+        let recovery = if envelope.is_null() {
             None
         } else {
-            Some(result.extract_subject()?)
+            Some(envelope.extract_subject()?)
         };
-        Ok(Self::new(id, recovery))
+        Ok(Self::new(recovery))
     }
 }
 
-impl std::fmt::Display for GetRecoveryResponse {
+impl TryFrom<SealedResponse> for GetRecoveryResult {
+    type Error = Error;
+
+    fn try_from(response: SealedResponse) -> Result<Self> {
+        response.result()?.clone().try_into()
+    }
+}
+
+impl std::fmt::Display for GetRecoveryResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}: {} OK: {}",
-            self.id().abbrev(),
+        f.write_fmt(format_args!("{} OK: {}",
             "getRecovery".flanked_function(),
             self.recovery().abbrev()
         ))
@@ -123,67 +99,39 @@ impl std::fmt::Display for GetRecoveryResponse {
 
 #[cfg(test)]
 mod tests {
-    use bc_components::PrivateKeyBase;
     use indoc::indoc;
 
     use super::*;
 
-    fn id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!(
-            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
-        ))
-        .unwrap()
-    }
-
     #[test]
     fn test_request() {
-        let private_key = PrivateKeyBase::new();
-        let key = private_key.public_key();
-
-        let request = GetRecoveryRequest::from_fields(id(), key);
-        let request_envelope = request.to_envelope();
-        assert_eq!(
-            request_envelope.format(),
-            indoc! {r#"
-        request(ARID(8712dfac)) [
-            'body': «"getRecovery"»
-            'senderPublicKey': PublicKeyBase
-        ]
-        "#}
-            .trim()
-        );
-        let decoded = request_envelope.try_into().unwrap();
+        let request = GetRecovery::new();
+        let expression: Expression = request.clone().into();
+        let request_envelope = expression.to_envelope();
+        assert_eq!(request_envelope.format(), indoc! {r#"
+        «"getRecovery"»
+        "#}.trim());
+        let decoded_expression = Expression::try_from(request_envelope).unwrap();
+        let decoded = GetRecovery::try_from(decoded_expression).unwrap();
         assert_eq!(request, decoded);
     }
 
     #[test]
     fn test_response() {
-        let response = GetRecoveryResponse::new(id(), Some("Recovery Method".into()));
+        let response = GetRecoveryResult::new(Some("Recovery Method".into()));
         let response_envelope = response.to_envelope();
-        assert_eq!(
-            response_envelope.format(),
-            indoc! {r#"
-        response(ARID(8712dfac)) [
-            'result': "Recovery Method"
-        ]
-        "#}
-            .trim()
-        );
-        let decoded = GetRecoveryResponse::try_from(response_envelope).unwrap();
+        assert_eq!(response_envelope.format(), indoc! {r#"
+        "Recovery Method"
+        "#}.trim());
+        let decoded = GetRecoveryResult::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);
 
-        let response = GetRecoveryResponse::new(id(), None);
+        let response = GetRecoveryResult::new(None);
         let response_envelope = response.to_envelope();
-        assert_eq!(
-            response_envelope.format(),
-            indoc! {r#"
-        response(ARID(8712dfac)) [
-            'result': null
-        ]
-        "#}
-            .trim()
-        );
-        let decoded = GetRecoveryResponse::try_from(response_envelope).unwrap();
+        assert_eq!(response_envelope.format(), indoc! {r#"
+        null
+        "#}.trim());
+        let decoded = GetRecoveryResult::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);
     }
 }

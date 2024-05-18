@@ -46,6 +46,12 @@ impl TryFrom<Envelope> for Receipt {
     }
 }
 
+impl From<&Receipt> for Receipt {
+    fn from(receipt: &Receipt) -> Self {
+        receipt.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -67,7 +73,7 @@ mod tests {
         ]
         "#}.trim());
 
-        let receipt_2: Receipt = envelope.try_into().unwrap();
+        let receipt_2 = Receipt::try_from(envelope).unwrap();
         assert_eq!(receipt, receipt_2);
     }
 }

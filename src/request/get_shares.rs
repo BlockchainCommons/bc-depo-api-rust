@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use bc_components::{PublicKeyBase, ARID};
 use bc_envelope::prelude::*;
 use bytes::Bytes;
 use anyhow::{Error, Result};
@@ -12,77 +11,54 @@ use crate::{receipt::Receipt, GET_SHARES_FUNCTION, RECEIPT_PARAM, util::{Abbrev,
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetSharesRequest {
-    id: ARID,
-    key: PublicKeyBase,
-    receipts: HashSet<Receipt>,
-}
+pub struct GetShares (HashSet<Receipt>);
 
-impl GetSharesRequest {
-    pub fn from_fields(id: ARID, key: PublicKeyBase, receipts: HashSet<Receipt>) -> Self {
-        Self { id, key, receipts }
+impl GetShares {
+    pub fn new<I, T>(iterable: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Clone + Into<Receipt>,
+    {
+        Self(iterable.into_iter().map(|item| item.clone().into()).collect())
     }
 
-    pub fn new<'a>(
-        key: impl AsRef<PublicKeyBase>,
-        receipts: impl IntoIterator<Item = &'a Receipt>,
-    ) -> Self {
-        Self::from_fields(
-            ARID::new(),
-            key.as_ref().clone(),
-            receipts.into_iter().cloned().collect(),
-        )
-    }
-
-    pub fn from_body(id: ARID, key: PublicKeyBase, body: Envelope) -> Result<Self> {
-        let receipts = body
-            .objects_for_parameter(RECEIPT_PARAM)
-            .into_iter()
-            .map(|e| e.try_into())
-            .collect::<Result<HashSet<Receipt>>>()?;
-        Ok(Self::from_fields(id, key, receipts))
-    }
-
-    pub fn id(&self) -> &ARID {
-        self.id.as_ref()
-    }
-
-    pub fn key(&self) -> &PublicKeyBase {
-        &self.key
+    pub fn new_all_shares() -> Self {
+        Self(HashSet::new())
     }
 
     pub fn receipts(&self) -> &HashSet<Receipt> {
-        &self.receipts
+        &self.0
     }
 }
 
-impl From<GetSharesRequest> for Envelope {
-    fn from(value: GetSharesRequest) -> Self {
-        let mut body = Envelope::new_function(GET_SHARES_FUNCTION);
-        let id = value.id().clone();
-        for receipt in value.receipts.into_iter() {
-            body = body.add_parameter(RECEIPT_PARAM, receipt);
+impl From<GetShares> for Expression {
+    fn from(value: GetShares) -> Self {
+        let mut expression = Expression::new(GET_SHARES_FUNCTION);
+        for receipt in value.0.into_iter() {
+            expression = expression.with_parameter(RECEIPT_PARAM, receipt);
         }
-        body.into_transaction_request(id, &value.key)
+        expression
     }
 }
 
-impl TryFrom<Envelope> for GetSharesRequest {
+impl TryFrom<Expression> for GetShares {
     type Error = Error;
 
-    fn try_from(envelope: Envelope) -> Result<Self> {
-        let (id, key, body, _) = envelope.parse_transaction_request(Some(&GET_SHARES_FUNCTION))?;
-        Self::from_body(id, key, body)
+    fn try_from(expression: Expression) -> Result<Self> {
+        let receipts = expression
+            .objects_for_parameter(RECEIPT_PARAM)
+            .into_iter()
+            .map(|parameter| parameter.try_into())
+            .collect::<Result<HashSet<Receipt>>>()?;
+        Ok(Self(receipts))
     }
 }
 
-impl std::fmt::Display for GetSharesRequest {
+impl std::fmt::Display for GetShares {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}: {} {} key {}",
-            self.id().abbrev(),
+        f.write_fmt(format_args!("{} {}",
             "getShares".flanked_function(),
             self.receipts().abbrev(),
-            self.key().abbrev()
         ))
     }
 }
@@ -92,62 +68,57 @@ impl std::fmt::Display for GetSharesRequest {
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetSharesResponse {
-    id: ARID,
-    receipt_to_data: HashMap<Receipt, Bytes>,
-}
+pub struct GetSharesResult(HashMap<Receipt, Bytes>);
 
-impl GetSharesResponse {
-    pub fn new(id: ARID, receipt_to_data: HashMap<Receipt, Bytes>) -> Self {
-        Self {
-            id,
-            receipt_to_data,
-        }
-    }
-
-    pub fn id(&self) -> &ARID {
-        self.id.as_ref()
+impl GetSharesResult {
+    pub fn new(receipt_to_data: HashMap<Receipt, Bytes>) -> Self {
+        Self(receipt_to_data)
     }
 
     pub fn receipt_to_data(&self) -> &HashMap<Receipt, Bytes> {
-        &self.receipt_to_data
+        &self.0
     }
 
-    pub fn data_for_receipt(&self, receipt: &Receipt) -> Option<Bytes> {
-        self.receipt_to_data.get(receipt).cloned()
+    pub fn data_for_receipt(&self, receipt: &Receipt) -> Option<&Bytes> {
+        self.0.get(receipt)
     }
 }
 
-impl From<GetSharesResponse> for Envelope {
-    fn from(value: GetSharesResponse) -> Self {
+impl From<GetSharesResult> for Envelope {
+    fn from(value: GetSharesResult) -> Self {
         let mut result = known_values::OK_VALUE.to_envelope();
-        for (receipt, data) in value.receipt_to_data {
+        for (receipt, data) in value.0 {
             result = result.add_assertion(receipt, data);
         }
-        result.into_success_response(value.id)
+        result
     }
 }
 
-impl TryFrom<Envelope> for GetSharesResponse {
+impl TryFrom<Envelope> for GetSharesResult {
     type Error = Error;
 
     fn try_from(envelope: Envelope) -> Result<Self> {
-        let (result, id) = envelope.parse_success_response(None)?;
         let mut receipt_to_data = HashMap::new();
-        for assertion in result.assertions() {
-            let receipt: Receipt = assertion.try_predicate()?.try_into()?;
-            // let receipt: Receipt = (&assertion.try_predicate()?).try_into()?;
-            let data: Bytes = assertion.try_object()?.try_into()?;
+        for assertion in envelope.assertions() {
+            let receipt = Receipt::try_from(assertion.try_predicate()?)?;
+            let data = Bytes::try_from(assertion.try_object()?)?;
             receipt_to_data.insert(receipt, data);
         }
-        Ok(Self::new(id, receipt_to_data))
+        Ok(Self::new(receipt_to_data))
     }
 }
 
-impl std::fmt::Display for GetSharesResponse {
+impl TryFrom<SealedResponse> for GetSharesResult {
+    type Error = Error;
+
+    fn try_from(response: SealedResponse) -> Result<Self> {
+        response.result()?.clone().try_into()
+    }
+}
+
+impl std::fmt::Display for GetSharesResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}: {} OK {}",
-            self.id().abbrev(),
+        f.write_fmt(format_args!("{} OK {}",
             "getShares".flanked_function(),
             self.receipt_to_data().abbrev()
         ))
@@ -156,17 +127,10 @@ impl std::fmt::Display for GetSharesResponse {
 
 #[cfg(test)]
 mod tests {
-    use bc_components::PrivateKeyBase;
+    use bc_components::ARID;
     use indoc::indoc;
 
     use super::*;
-
-    fn id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!(
-            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
-        ))
-        .unwrap()
-    }
 
     fn user_id() -> ARID {
         ARID::from_data_ref(hex_literal::hex!(
@@ -193,31 +157,24 @@ mod tests {
 
     #[test]
     fn test_request() {
-        let private_key = PrivateKeyBase::new();
-        let key = private_key.public_key();
+        let receipts = vec![receipt_1(), receipt_2()];
 
-        let receipts = vec![receipt_1(), receipt_2()].into_iter().collect();
-
-        let request = GetSharesRequest::from_fields(id(), key, receipts);
-        let request_envelope = request.to_envelope();
-        assert_eq!(
-            request_envelope.format(),
-            indoc! {r#"
-        request(ARID(8712dfac)) [
-            'body': «"getShares"» [
-                ❰"receipt"❱: Bytes(32) [
-                    'isA': "Receipt"
-                ]
-                ❰"receipt"❱: Bytes(32) [
-                    'isA': "Receipt"
-                ]
+        let request = GetShares::new(receipts);
+        let expression: Expression = request.clone().into();
+        let request_envelope = expression.to_envelope();
+        // println!("{}", request_envelope.format());
+        assert_eq!(request_envelope.format(), indoc! {r#"
+        «"getShares"» [
+            ❰"receipt"❱: Bytes(32) [
+                'isA': "Receipt"
             ]
-            'senderPublicKey': PublicKeyBase
+            ❰"receipt"❱: Bytes(32) [
+                'isA': "Receipt"
+            ]
         ]
-        "#}
-            .trim()
-        );
-        let decoded = request_envelope.try_into().unwrap();
+        "#}.trim());
+        let decoded_expression = Expression::try_from(request_envelope).unwrap();
+        let decoded = GetShares::try_from(decoded_expression).unwrap();
         assert_eq!(request, decoded);
     }
 
@@ -226,27 +183,22 @@ mod tests {
         let receipts_to_data = vec![(receipt_1(), data_1()), (receipt_2(), data_2())]
             .into_iter()
             .collect();
-        let response = GetSharesResponse::new(id(), receipts_to_data);
+        let response = GetSharesResult::new(receipts_to_data);
         let response_envelope = response.to_envelope();
-        assert_eq!(
-            response_envelope.format(),
-            indoc! {r#"
-        response(ARID(8712dfac)) [
-            'result': 'OK' [
-                Bytes(32) [
-                    'isA': "Receipt"
-                ]
-                : Bytes(6)
-                Bytes(32) [
-                    'isA': "Receipt"
-                ]
-                : Bytes(6)
+        // println!("{}", response_envelope.format());
+        assert_eq!(response_envelope.format(), indoc! {r#"
+        'OK' [
+            Bytes(32) [
+                'isA': "Receipt"
             ]
+            : Bytes(6)
+            Bytes(32) [
+                'isA': "Receipt"
+            ]
+            : Bytes(6)
         ]
-        "#}
-            .trim()
-        );
-        let decoded = GetSharesResponse::try_from(response_envelope).unwrap();
+        "#}.trim());
+        let decoded = GetSharesResult::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);
     }
 }
