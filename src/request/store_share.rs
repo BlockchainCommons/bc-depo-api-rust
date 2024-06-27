@@ -1,5 +1,4 @@
 use bc_envelope::prelude::*;
-use bytes::Bytes;
 use anyhow::{Error, Result};
 
 use crate::{STORE_SHARE_FUNCTION, DATA_PARAM, receipt::Receipt, util::{Abbrev, FlankedFunction}};
@@ -9,15 +8,15 @@ use crate::{STORE_SHARE_FUNCTION, DATA_PARAM, receipt::Receipt, util::{Abbrev, F
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StoreShare(Bytes);
+pub struct StoreShare(ByteString);
 
 impl StoreShare {
-    pub fn new(data: Bytes) -> Self {
-        Self(data)
+    pub fn new(data: impl Into<ByteString>) -> Self {
+        Self(data.into())
     }
 
-    pub fn data(&self) -> &Bytes {
-        &self.0
+    pub fn data(&self) -> &[u8] {
+        self.0.as_ref()
     }
 }
 
@@ -32,7 +31,7 @@ impl TryFrom<Expression> for StoreShare {
     type Error = Error;
 
     fn try_from(expression: Expression) -> Result<Self> {
-        Ok(Self::new(expression.extract_object_for_parameter(DATA_PARAM)?))
+        Ok(Self::new(expression.extract_object_for_parameter::<ByteString>(DATA_PARAM)?))
     }
 }
 
@@ -40,7 +39,7 @@ impl std::fmt::Display for StoreShare {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{} {}",
             "storeShare".flanked_function(),
-            self.data().abbrev(),
+            ByteString::from(self.data()).abbrev(),
         ))
     }
 }
@@ -102,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_request() {
-        let data = Bytes::from_static(b"data");
+        let data = b"data";
         let request = StoreShare::new(data);
         let expression: Expression = request.clone().into();
         let request_envelope = expression.to_envelope();

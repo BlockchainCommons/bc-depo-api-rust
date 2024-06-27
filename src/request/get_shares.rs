@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
 use bc_envelope::prelude::*;
-use bytes::Bytes;
 use anyhow::{Error, Result};
 
 use crate::{receipt::Receipt, GET_SHARES_FUNCTION, RECEIPT_PARAM, util::{Abbrev, FlankedFunction}};
@@ -68,18 +67,18 @@ impl std::fmt::Display for GetShares {
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetSharesResult(HashMap<Receipt, Bytes>);
+pub struct GetSharesResult(HashMap<Receipt, ByteString>);
 
 impl GetSharesResult {
-    pub fn new(receipt_to_data: HashMap<Receipt, Bytes>) -> Self {
+    pub fn new(receipt_to_data: HashMap<Receipt, ByteString>) -> Self {
         Self(receipt_to_data)
     }
 
-    pub fn receipt_to_data(&self) -> &HashMap<Receipt, Bytes> {
+    pub fn receipt_to_data(&self) -> &HashMap<Receipt, ByteString> {
         &self.0
     }
 
-    pub fn data_for_receipt(&self, receipt: &Receipt) -> Option<&Bytes> {
+    pub fn data_for_receipt(&self, receipt: &Receipt) -> Option<&ByteString> {
         self.0.get(receipt)
     }
 }
@@ -101,7 +100,8 @@ impl TryFrom<Envelope> for GetSharesResult {
         let mut receipt_to_data = HashMap::new();
         for assertion in envelope.assertions() {
             let receipt = Receipt::try_from(assertion.try_predicate()?)?;
-            let data = Bytes::try_from(assertion.try_object()?)?;
+            let object = assertion.try_object()?;
+            let data = ByteString::try_from(object)?;
             receipt_to_data.insert(receipt, data);
         }
         Ok(Self::new(receipt_to_data))
@@ -118,9 +118,13 @@ impl TryFrom<SealedResponse> for GetSharesResult {
 
 impl std::fmt::Display for GetSharesResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let abbrevable: HashMap<Receipt, ByteString> = self.receipt_to_data()
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
         f.write_fmt(format_args!("{} OK {}",
             "getShares".flanked_function(),
-            self.receipt_to_data().abbrev()
+            abbrevable.abbrev()
         ))
     }
 }
@@ -139,16 +143,16 @@ mod tests {
         .unwrap()
     }
 
-    fn data_1() -> Bytes {
-        Bytes::from_static(b"data_1")
+    fn data_1() -> ByteString {
+        b"data_1".to_vec().into()
     }
 
     fn receipt_1() -> Receipt {
         Receipt::new(&user_id(), data_1())
     }
 
-    fn data_2() -> Bytes {
-        Bytes::from_static(b"data_2")
+    fn data_2() -> ByteString {
+        b"data_2".to_vec().into()
     }
 
     fn receipt_2() -> Receipt {

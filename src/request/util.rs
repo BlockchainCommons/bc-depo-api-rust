@@ -2,7 +2,6 @@ use std::collections::{HashSet, HashMap};
 
 use bc_components::{ARID, PublicKeyBase, PrivateKeyBase};
 use bc_envelope::prelude::*;
-use bytes::Bytes;
 
 use crate::Receipt;
 
@@ -171,7 +170,7 @@ impl Abbrev for Receipt {
     }
 }
 
-impl Abbrev for Bytes {
+impl Abbrev for ByteString {
     fn abbrev(&self) -> String {
         format!("{} bytes", self.len()).flanked_abbrev()
     }

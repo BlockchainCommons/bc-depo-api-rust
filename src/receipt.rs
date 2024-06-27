@@ -1,6 +1,5 @@
 use bc_components::ARID;
 use bc_envelope::prelude::*;
-use bytes::Bytes;
 use anyhow::{Error, Result};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -40,8 +39,8 @@ impl TryFrom<Envelope> for Receipt {
 
     fn try_from(envelope: Envelope) -> Result<Self> {
         envelope.check_type_envelope(RECEIPT_TYPE)?;
-        let bytes: Bytes = envelope.extract_subject()?;
-        let digest = Digest::from_data_ref(&bytes)?;
+        let bytes: ByteString = envelope.extract_subject()?;
+        let digest = Digest::from_data_ref(bytes.data())?;
         Ok(Self(digest))
     }
 }
