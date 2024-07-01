@@ -55,7 +55,7 @@ mod tests {
 
     #[test]
     fn test_request() {
-        let new_key = PrivateKeyBase::new().public_key();
+        let new_key = PrivateKeyBase::new().schnorr_public_key_base();
 
         let request = UpdateKey::new(new_key);
         let expression: Expression = request.clone().into();
