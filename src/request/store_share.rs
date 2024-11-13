@@ -101,6 +101,8 @@ mod tests {
 
     #[test]
     fn test_request() {
+        bc_envelope::register_tags();
+
         let data = b"data";
         let request = StoreShare::new(data);
         let expression: Expression = request.clone().into();
@@ -119,6 +121,8 @@ mod tests {
 
     #[test]
     fn test_response() {
+        bc_envelope::register_tags();
+
         let user_id = ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap();
         let data = b"data";
         let receipt = Receipt::new(&user_id, data);

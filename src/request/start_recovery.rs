@@ -52,6 +52,8 @@ mod tests {
 
     #[test]
     fn test_request() {
+        bc_envelope::register_tags();
+
         let recovery = "recovery".to_string();
         let request = StartRecovery::new(recovery);
         let expression: Expression = request.clone().into();

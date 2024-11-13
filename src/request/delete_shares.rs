@@ -82,6 +82,7 @@ mod tests {
 
     #[test]
     fn test_request() {
+        bc_envelope::register_tags();
 
         let receipts = vec![receipt_1(), receipt_2()];
 

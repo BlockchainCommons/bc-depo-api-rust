@@ -55,6 +55,8 @@ mod tests {
 
     #[test]
     fn test_request() {
+        bc_envelope::register_tags();
+
         let new_key = PrivateKeyBase::new().schnorr_public_key_base();
 
         let request = UpdateKey::new(new_key);

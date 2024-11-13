@@ -161,6 +161,8 @@ mod tests {
 
     #[test]
     fn test_request() {
+        bc_envelope::register_tags();
+
         let receipts = vec![receipt_1(), receipt_2()];
 
         let request = GetShares::new(receipts);
@@ -184,6 +186,8 @@ mod tests {
 
     #[test]
     fn test_response() {
+        bc_envelope::register_tags();
+
         let receipts_to_data = vec![(receipt_1(), data_1()), (receipt_2(), data_2())]
             .into_iter()
             .collect();

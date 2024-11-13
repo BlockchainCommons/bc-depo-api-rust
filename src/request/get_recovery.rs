@@ -105,6 +105,8 @@ mod tests {
 
     #[test]
     fn test_request() {
+        bc_envelope::register_tags();
+
         let request = GetRecovery::new();
         let expression: Expression = request.clone().into();
         let request_envelope = expression.to_envelope();
@@ -118,6 +120,8 @@ mod tests {
 
     #[test]
     fn test_response() {
+        bc_envelope::register_tags();
+
         let response = GetRecoveryResult::new(Some("Recovery Method".into()));
         let response_envelope = response.to_envelope();
         assert_eq!(response_envelope.format(), indoc! {r#"

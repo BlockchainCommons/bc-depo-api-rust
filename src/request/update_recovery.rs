@@ -64,6 +64,8 @@ mod tests {
 
     #[test]
     fn test_request() {
+        bc_envelope::register_tags();
+
         let recovery = "recovery".to_string();
 
         let request = UpdateRecovery::new(Some(recovery));
