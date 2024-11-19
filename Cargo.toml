@@ -14,8 +14,10 @@ documentation = "https://docs.rs/depo-api"
 [dependencies]
 dcbor = { version = "^0.15.0", features = ["multithreaded"] }
 bc-ur = "^0.5.0"
-bc-envelope = { version = "^0.18.0", features = ["multithreaded"] }
 bc-components = "^0.13.0"
+bc-envelope = { version = "^0.18.0", features = ["multithreaded"] }
+gstp = "^0.1.0"
+
 anyhow = "^1.0.0"
 hex = "^0.4.3"
 

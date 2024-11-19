@@ -1,5 +1,6 @@
 use bc_envelope::prelude::*;
 use anyhow::{Error, Result};
+use gstp::SealedResponse;
 
 use crate::{GET_RECOVERY_FUNCTION, util::{Abbrev, FlankedFunction}};
 

@@ -1,5 +1,6 @@
 use bc_envelope::prelude::*;
 use anyhow::{Error, Result};
+use gstp::SealedResponse;
 
 use crate::{STORE_SHARE_FUNCTION, DATA_PARAM, receipt::Receipt, util::{Abbrev, FlankedFunction}};
 
