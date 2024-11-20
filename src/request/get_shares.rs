@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use bc_envelope::prelude::*;
 use anyhow::{Error, Result};
-use gstp::SealedResponse;
+use gstp::prelude::*;
 
 use crate::{receipt::Receipt, GET_SHARES_FUNCTION, RECEIPT_PARAM, util::{Abbrev, FlankedFunction}};
 
