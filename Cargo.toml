@@ -16,6 +16,7 @@ dcbor = { version = "^0.16.0", features = ["multithreaded"] }
 bc-ur = "^0.6.0"
 bc-components = "^0.14.0"
 bc-envelope = { version = "^0.19.0", features = ["multithreaded"] }
+bc-xid = "^0.1.0"
 gstp = "^0.1.0"
 
 anyhow = "^1.0.0"
@@ -24,6 +25,7 @@ hex = "^0.4.3"
 [dev-dependencies]
 indoc = "^2.0.4"
 hex-literal = "^0.4.1"
+bc-rand = "^0.2.0"
 
 [features]
 multithreaded = ["dcbor/multithreaded", "bc-envelope/multithreaded"]

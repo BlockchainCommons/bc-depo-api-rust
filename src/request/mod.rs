@@ -21,8 +21,8 @@ pub use start_recovery::StartRecovery;
 pub mod store_share;
 pub use store_share::{StoreShare, StoreShareResult};
 
-pub mod update_key;
-pub use update_key::UpdateKey;
+pub mod update_xid_document;
+pub use update_xid_document::UpdateXIDDocument;
 
 pub mod update_recovery;
 pub use update_recovery::UpdateRecovery;

@@ -95,7 +95,7 @@ impl std::fmt::Display for StoreShareResult {
 
 #[cfg(test)]
 mod tests {
-    use bc_components::ARID;
+    use bc_components::XID;
     use indoc::indoc;
 
     use super::*;
@@ -124,7 +124,7 @@ mod tests {
     fn test_response() {
         bc_envelope::register_tags();
 
-        let user_id = ARID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap();
+        let user_id = XID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap();
         let data = b"data";
         let receipt = Receipt::new(&user_id, data);
         let result = StoreShareResult::new(receipt);

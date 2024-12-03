@@ -132,13 +132,13 @@ impl std::fmt::Display for GetSharesResult {
 
 #[cfg(test)]
 mod tests {
-    use bc_components::ARID;
+    use bc_components::XID;
     use indoc::indoc;
 
     use super::*;
 
-    fn user_id() -> ARID {
-        ARID::from_data_ref(hex_literal::hex!(
+    fn user_id() -> XID {
+        XID::from_data_ref(hex_literal::hex!(
             "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
         ))
         .unwrap()
