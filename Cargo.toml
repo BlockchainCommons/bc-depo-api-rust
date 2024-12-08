@@ -1,6 +1,6 @@
 [package]
 name = "depo-api"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2021"
 description = "API for the Blockchain Commons Depository ('depo') server."
 authors = ["Blockchain Commons"]
@@ -16,7 +16,7 @@ dcbor = { version = "^0.16.0", features = ["multithreaded"] }
 bc-ur = "^0.6.0"
 bc-components = "^0.14.0"
 bc-envelope = { version = "^0.19.0", features = ["multithreaded"] }
-bc-xid = "^0.1.0"
+bc-xid = "^0.1.2"
 gstp = "^0.1.0"
 
 anyhow = "^1.0.0"
