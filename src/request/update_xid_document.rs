@@ -49,7 +49,7 @@ impl std::fmt::Display for UpdateXIDDocument {
 
 #[cfg(test)]
 mod tests {
-    use bc_components::{PrivateKeyBase, PublicKeyBaseProvider};
+    use bc_components::{PrivateKeyBase, PublicKeysProvider};
     use bc_rand::make_fake_random_number_generator;
     use indoc::indoc;
 
@@ -60,7 +60,7 @@ mod tests {
         bc_envelope::register_tags();
 
         let mut rng = make_fake_random_number_generator();
-        let new_xid_document: XIDDocument = PrivateKeyBase::new_using(&mut rng).public_key_base().into();
+        let new_xid_document: XIDDocument = PrivateKeyBase::new_using(&mut rng).public_keys().into();
 
         let request = UpdateXIDDocument::new(new_xid_document);
         let expression: Expression = request.clone().into();
@@ -69,7 +69,7 @@ mod tests {
         assert_eq!(request_envelope.format(), indoc! {r#"
         «"updateXIDDocument"» [
             ❰"newXIDDocument"❱: XID(71274df1) [
-                'key': PublicKeyBase(eb9b1cae) [
+                'key': PublicKeys(eb9b1cae) [
                     'allow': 'All'
                 ]
             ]

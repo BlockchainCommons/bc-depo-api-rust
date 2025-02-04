@@ -1,6 +1,6 @@
 use std::collections::{HashSet, HashMap};
 
-use bc_components::{ARID, PublicKeyBase, PrivateKeyBase};
+use bc_components::{ARID, PublicKeys, PrivateKeyBase};
 use bc_envelope::prelude::*;
 
 use crate::Receipt;
@@ -145,7 +145,7 @@ impl Abbrev for ARID {
     }
 }
 
-impl Abbrev for PublicKeyBase {
+impl Abbrev for PublicKeys {
     fn abbrev(&self) -> String {
         self.ur_string().suffix(8).flanked_abbrev()
     }
