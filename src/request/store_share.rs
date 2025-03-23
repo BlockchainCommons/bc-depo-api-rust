@@ -126,7 +126,7 @@ mod tests {
 
         let user_id = XID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap();
         let data = b"data";
-        let receipt = Receipt::new(&user_id, data);
+        let receipt = Receipt::new(user_id, data);
         let result = StoreShareResult::new(receipt);
         let result_envelope = result.to_envelope();
         // println!("{}", result_envelope.format());

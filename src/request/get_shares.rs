@@ -149,7 +149,7 @@ mod tests {
     }
 
     fn receipt_1() -> Receipt {
-        Receipt::new(&user_id(), data_1())
+        Receipt::new(user_id(), data_1())
     }
 
     fn data_2() -> ByteString {
@@ -157,7 +157,7 @@ mod tests {
     }
 
     fn receipt_2() -> Receipt {
-        Receipt::new(&user_id(), data_2())
+        Receipt::new(user_id(), data_2())
     }
 
     #[test]

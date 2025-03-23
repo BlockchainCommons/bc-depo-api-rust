@@ -73,11 +73,11 @@ mod tests {
     }
 
     fn receipt_1() -> Receipt {
-        Receipt::new(&user_id(), b"data_1")
+        Receipt::new(user_id(), b"data_1")
     }
 
     fn receipt_2() -> Receipt {
-        Receipt::new(&user_id(), b"data_2")
+        Receipt::new(user_id(), b"data_2")
     }
 
     #[test]
