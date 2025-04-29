@@ -1,14 +1,14 @@
 use bc_envelope::prelude::*;
-use anyhow::{Error, Result};
+use anyhow::{ Error, Result };
 
-use crate::{FINISH_RECOVERY_FUNCTION, util::FlankedFunction};
+use crate::{ FINISH_RECOVERY_FUNCTION, util::FlankedFunction };
 
 //
 // Request
 //
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FinishRecovery ();
+pub struct FinishRecovery();
 
 impl FinishRecovery {
     pub fn new() -> Self {
@@ -38,9 +38,7 @@ impl TryFrom<Expression> for FinishRecovery {
 
 impl std::fmt::Display for FinishRecovery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}",
-            "finishRecovery".flanked_function(),
-        ))
+        f.write_fmt(format_args!("{}", "finishRecovery".flanked_function()))
     }
 }
 
@@ -58,8 +56,9 @@ mod tests {
         let expression: Expression = request.clone().into();
         let request_envelope = expression.to_envelope();
         // println!("{}", request_envelope.format());
+        #[rustfmt::skip]
         assert_eq!(request_envelope.format(), indoc! {r#"
-        «"finishRecovery"»
+            «"finishRecovery"»
         "#}.trim());
         let decoded_expression = Expression::try_from(request_envelope).unwrap();
         let decoded = FinishRecovery::try_from(decoded_expression).unwrap();

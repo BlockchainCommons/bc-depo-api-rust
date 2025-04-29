@@ -1,19 +1,19 @@
 use bc_envelope::prelude::*;
-use anyhow::{Error, Result};
+use anyhow::{ Error, Result };
 use gstp::prelude::*;
 
-use crate::{GET_RECOVERY_FUNCTION, util::{Abbrev, FlankedFunction}};
+use crate::{ GET_RECOVERY_FUNCTION, util::{ Abbrev, FlankedFunction } };
 
 //
 // Request
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetRecovery ();
+pub struct GetRecovery();
 
 impl GetRecovery {
     pub fn new() -> Self {
-        Self ()
+        Self()
     }
 }
 
@@ -39,9 +39,7 @@ impl TryFrom<Expression> for GetRecovery {
 
 impl std::fmt::Display for GetRecovery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}",
-            "getRecovery".flanked_function(),
-        ))
+        f.write_fmt(format_args!("{}", "getRecovery".flanked_function()))
     }
 }
 
@@ -72,11 +70,7 @@ impl TryFrom<Envelope> for GetRecoveryResult {
     type Error = Error;
 
     fn try_from(envelope: Envelope) -> Result<Self> {
-        let recovery = if envelope.is_null() {
-            None
-        } else {
-            Some(envelope.extract_subject()?)
-        };
+        let recovery = if envelope.is_null() { None } else { Some(envelope.extract_subject()?) };
         Ok(Self::new(recovery))
     }
 }
@@ -91,10 +85,9 @@ impl TryFrom<SealedResponse> for GetRecoveryResult {
 
 impl std::fmt::Display for GetRecoveryResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} OK: {}",
-            "getRecovery".flanked_function(),
-            self.recovery().abbrev()
-        ))
+        f.write_fmt(
+            format_args!("{} OK: {}", "getRecovery".flanked_function(), self.recovery().abbrev())
+        )
     }
 }
 
@@ -111,8 +104,9 @@ mod tests {
         let request = GetRecovery::new();
         let expression: Expression = request.clone().into();
         let request_envelope = expression.to_envelope();
+        #[rustfmt::skip]
         assert_eq!(request_envelope.format(), indoc! {r#"
-        «"getRecovery"»
+            «"getRecovery"»
         "#}.trim());
         let decoded_expression = Expression::try_from(request_envelope).unwrap();
         let decoded = GetRecovery::try_from(decoded_expression).unwrap();
@@ -125,17 +119,31 @@ mod tests {
 
         let response = GetRecoveryResult::new(Some("Recovery Method".into()));
         let response_envelope = response.to_envelope();
-        assert_eq!(response_envelope.format(), indoc! {r#"
+        assert_eq!(
+            response_envelope.format(),
+            (
+                indoc! {
+                    r#"
         "Recovery Method"
-        "#}.trim());
+        "#
+                }
+            ).trim()
+        );
         let decoded = GetRecoveryResult::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);
 
         let response = GetRecoveryResult::new(None);
         let response_envelope = response.to_envelope();
-        assert_eq!(response_envelope.format(), indoc! {r#"
+        assert_eq!(
+            response_envelope.format(),
+            (
+                indoc! {
+                    r#"
         null
-        "#}.trim());
+        "#
+                }
+            ).trim()
+        );
         let decoded = GetRecoveryResult::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);
     }

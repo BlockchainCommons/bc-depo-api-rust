@@ -1,8 +1,13 @@
 use bc_envelope::prelude::*;
-use anyhow::{Error, Result};
+use anyhow::{ Error, Result };
 use gstp::prelude::*;
 
-use crate::{STORE_SHARE_FUNCTION, DATA_PARAM, receipt::Receipt, util::{Abbrev, FlankedFunction}};
+use crate::{
+    STORE_SHARE_FUNCTION,
+    DATA_PARAM,
+    receipt::Receipt,
+    util::{ Abbrev, FlankedFunction },
+};
 
 //
 // Request
@@ -23,8 +28,7 @@ impl StoreShare {
 
 impl From<StoreShare> for Expression {
     fn from(value: StoreShare) -> Self {
-        Expression::new(STORE_SHARE_FUNCTION)
-            .with_parameter(DATA_PARAM, value.0)
+        Expression::new(STORE_SHARE_FUNCTION).with_parameter(DATA_PARAM, value.0)
     }
 }
 
@@ -38,10 +42,13 @@ impl TryFrom<Expression> for StoreShare {
 
 impl std::fmt::Display for StoreShare {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} {}",
-            "storeShare".flanked_function(),
-            ByteString::from(self.data()).abbrev(),
-        ))
+        f.write_fmt(
+            format_args!(
+                "{} {}",
+                "storeShare".flanked_function(),
+                ByteString::from(self.data()).abbrev()
+            )
+        )
     }
 }
 
@@ -86,10 +93,13 @@ impl TryFrom<SealedResponse> for StoreShareResult {
 
 impl std::fmt::Display for StoreShareResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} OK receipt {}",
-            "storeShare".flanked_function(),
-            self.receipt().abbrev()
-        ))
+        f.write_fmt(
+            format_args!(
+                "{} OK receipt {}",
+                "storeShare".flanked_function(),
+                self.receipt().abbrev()
+            )
+        )
     }
 }
 
@@ -109,11 +119,11 @@ mod tests {
         let expression: Expression = request.clone().into();
         let request_envelope = expression.to_envelope();
         // println!("{}", request_envelope.format());
-        assert_eq!(request_envelope.format(),
-        indoc! {r#"
-        «"storeShare"» [
-            ❰"data"❱: Bytes(4)
-        ]
+        #[rustfmt::skip]
+        assert_eq!(request_envelope.format(), indoc! {r#"
+            «"storeShare"» [
+                ❰"data"❱: Bytes(4)
+            ]
         "#}.trim());
         let decoded_expression = Expression::try_from(request_envelope).unwrap();
         let decoded = StoreShare::try_from(decoded_expression).unwrap();
@@ -124,19 +134,21 @@ mod tests {
     fn test_response() {
         bc_envelope::register_tags();
 
-        let user_id = XID::from_data_ref(hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")).unwrap();
+        let user_id = XID::from_data_ref(
+            hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")
+        ).unwrap();
         let data = b"data";
         let receipt = Receipt::new(user_id, data);
         let result = StoreShareResult::new(receipt);
         let result_envelope = result.to_envelope();
         // println!("{}", result_envelope.format());
-        assert_eq!(result_envelope.format(),
-        indoc! {r#"
-        Bytes(32) [
-            'isA': "Receipt"
-        ]
+        #[rustfmt::skip]
+        assert_eq!(result_envelope.format(), indoc! {r#"
+            Bytes(32) [
+                'isA': "Receipt"
+            ]
         "#}.trim());
-        let decoded =StoreShareResult::try_from(result_envelope).unwrap();
+        let decoded = StoreShareResult::try_from(result_envelope).unwrap();
         assert_eq!(result, decoded);
     }
 }

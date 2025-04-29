@@ -1,9 +1,9 @@
 use bc_envelope::prelude::*;
-use anyhow::{Error, Result};
+use anyhow::{ Error, Result };
 use bc_xid::XIDDocument;
 use bc_components::XIDProvider;
 
-use crate::{NEW_XID_DOCUMENT_PARAM, UPDATE_XID_DOCUMENT_FUNCTION, util::FlankedFunction};
+use crate::{ NEW_XID_DOCUMENT_PARAM, UPDATE_XID_DOCUMENT_FUNCTION, util::FlankedFunction };
 
 //
 // Request
@@ -24,8 +24,10 @@ impl UpdateXIDDocument {
 
 impl From<UpdateXIDDocument> for Expression {
     fn from(value: UpdateXIDDocument) -> Self {
-        Expression::new(UPDATE_XID_DOCUMENT_FUNCTION)
-            .with_parameter(NEW_XID_DOCUMENT_PARAM, value.0)
+        Expression::new(UPDATE_XID_DOCUMENT_FUNCTION).with_parameter(
+            NEW_XID_DOCUMENT_PARAM,
+            value.0
+        )
     }
 }
 
@@ -33,23 +35,28 @@ impl TryFrom<Expression> for UpdateXIDDocument {
     type Error = Error;
 
     fn try_from(expression: Expression) -> Result<Self> {
-        let new_xid_document = XIDDocument::try_from(expression.object_for_parameter(NEW_XID_DOCUMENT_PARAM)?)?;
+        let new_xid_document = XIDDocument::try_from(
+            expression.object_for_parameter(NEW_XID_DOCUMENT_PARAM)?
+        )?;
         Ok(Self::new(new_xid_document))
     }
 }
 
 impl std::fmt::Display for UpdateXIDDocument {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} new {}",
-            "updateXIDDocument".flanked_function(),
-            self.new_xid_document().xid()
-        ))
+        f.write_fmt(
+            format_args!(
+                "{} new {}",
+                "updateXIDDocument".flanked_function(),
+                self.new_xid_document().xid()
+            )
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use bc_components::{PrivateKeyBase, PublicKeysProvider};
+    use bc_components::{ PrivateKeyBase, PublicKeysProvider };
     use bc_rand::make_fake_random_number_generator;
     use indoc::indoc;
 
@@ -60,20 +67,23 @@ mod tests {
         bc_envelope::register_tags();
 
         let mut rng = make_fake_random_number_generator();
-        let new_xid_document: XIDDocument = PrivateKeyBase::new_using(&mut rng).public_keys().into();
+        let new_xid_document: XIDDocument = PrivateKeyBase::new_using(&mut rng)
+            .public_keys()
+            .into();
 
         let request = UpdateXIDDocument::new(new_xid_document);
         let expression: Expression = request.clone().into();
         let request_envelope = expression.to_envelope();
         // println!("{}", request_envelope.format());
+        #[rustfmt::skip]
         assert_eq!(request_envelope.format(), indoc! {r#"
-        «"updateXIDDocument"» [
-            ❰"newXIDDocument"❱: XID(71274df1) [
-                'key': PublicKeys(eb9b1cae) [
-                    'allow': 'All'
+            «"updateXIDDocument"» [
+                ❰"newXIDDocument"❱: XID(71274df1) [
+                    'key': PublicKeys(eb9b1cae) [
+                        'allow': 'All'
+                    ]
                 ]
             ]
-        ]
         "#}.trim());
         let decoded_expression = Expression::try_from(request_envelope).unwrap();
         let decoded = UpdateXIDDocument::try_from(decoded_expression).unwrap();

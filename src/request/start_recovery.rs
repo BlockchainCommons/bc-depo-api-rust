@@ -1,14 +1,14 @@
 use bc_envelope::prelude::*;
-use anyhow::{Error, Result};
+use anyhow::{ Error, Result };
 
-use crate::{RECOVERY_METHOD_PARAM, START_RECOVERY_FUNCTION, util::{Abbrev, FlankedFunction}};
+use crate::{ RECOVERY_METHOD_PARAM, START_RECOVERY_FUNCTION, util::{ Abbrev, FlankedFunction } };
 
 //
 // Request
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StartRecovery (String);
+pub struct StartRecovery(String);
 
 impl StartRecovery {
     pub fn new(recovery: String) -> Self {
@@ -22,8 +22,10 @@ impl StartRecovery {
 
 impl From<StartRecovery> for Expression {
     fn from(value: StartRecovery) -> Self {
-        Expression::new(START_RECOVERY_FUNCTION)
-            .with_parameter(RECOVERY_METHOD_PARAM, value.0.clone())
+        Expression::new(START_RECOVERY_FUNCTION).with_parameter(
+            RECOVERY_METHOD_PARAM,
+            value.0.clone()
+        )
     }
 }
 
@@ -37,10 +39,9 @@ impl TryFrom<Expression> for StartRecovery {
 
 impl std::fmt::Display for StartRecovery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} {}",
-            "startRecovery".flanked_function(),
-            self.recovery().abbrev(),
-        ))
+        f.write_fmt(
+            format_args!("{} {}", "startRecovery".flanked_function(), self.recovery().abbrev())
+        )
     }
 }
 
@@ -59,10 +60,11 @@ mod tests {
         let expression: Expression = request.clone().into();
         let request_envelope = expression.to_envelope();
         // println!("{}", request_envelope.format());
+        #[rustfmt::skip]
         assert_eq!(request_envelope.format(), indoc! {r#"
-        «"startRecovery"» [
-            ❰"recoveryMethod"❱: "recovery"
-        ]
+            «"startRecovery"» [
+                ❰"recoveryMethod"❱: "recovery"
+            ]
         "#}.trim());
         let decoded_expression = Expression::try_from(request_envelope).unwrap();
         let decoded = StartRecovery::try_from(decoded_expression).unwrap();

@@ -1,9 +1,14 @@
 use std::collections::HashSet;
 
 use bc_envelope::prelude::*;
-use anyhow::{Error, Result};
+use anyhow::{ Error, Result };
 
-use crate::{receipt::Receipt, DELETE_SHARES_FUNCTION, RECEIPT_PARAM, util::{Abbrev, FlankedFunction}};
+use crate::{
+    receipt::Receipt,
+    DELETE_SHARES_FUNCTION,
+    RECEIPT_PARAM,
+    util::{ Abbrev, FlankedFunction },
+};
 
 //
 // Request
@@ -13,12 +18,13 @@ use crate::{receipt::Receipt, DELETE_SHARES_FUNCTION, RECEIPT_PARAM, util::{Abbr
 pub struct DeleteShares(HashSet<Receipt>);
 
 impl DeleteShares {
-    pub fn new<I, T>(iterable: I) -> Self
-    where
-        I: IntoIterator<Item = T>,
-        T: Clone + Into<Receipt>,
-    {
-        Self(iterable.into_iter().map(|item| item.clone().into()).collect())
+    pub fn new<I, T>(iterable: I) -> Self where I: IntoIterator<Item = T>, T: Clone + Into<Receipt> {
+        Self(
+            iterable
+                .into_iter()
+                .map(|item| item.clone().into())
+                .collect()
+        )
     }
 
     pub fn receipts(&self) -> &HashSet<Receipt> {
@@ -51,10 +57,9 @@ impl TryFrom<Expression> for DeleteShares {
 
 impl std::fmt::Display for DeleteShares {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} {}",
-            "deleteShares".flanked_function(),
-            self.receipts().abbrev(),
-        ))
+        f.write_fmt(
+            format_args!("{} {}", "deleteShares".flanked_function(), self.receipts().abbrev())
+        )
     }
 }
 
@@ -66,10 +71,9 @@ mod tests {
     use super::*;
 
     fn user_id() -> XID {
-        XID::from_data_ref(hex_literal::hex!(
-            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
-        ))
-        .unwrap()
+        XID::from_data_ref(
+            hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")
+        ).unwrap()
     }
 
     fn receipt_1() -> Receipt {
@@ -90,15 +94,16 @@ mod tests {
         let expression: Expression = request.clone().into();
         let request_envelope = expression.to_envelope();
         // println!("{}", request_envelope.format());
+        #[rustfmt::skip]
         assert_eq!(request_envelope.format(), indoc! {r#"
-        «"deleteShares"» [
-            ❰"receipt"❱: Bytes(32) [
-                'isA': "Receipt"
+            «"deleteShares"» [
+                ❰"receipt"❱: Bytes(32) [
+                    'isA': "Receipt"
+                ]
+                ❰"receipt"❱: Bytes(32) [
+                    'isA': "Receipt"
+                ]
             ]
-            ❰"receipt"❱: Bytes(32) [
-                'isA': "Receipt"
-            ]
-        ]
         "#}.trim());
         let decoded_expression = Expression::try_from(request_envelope).unwrap();
         let decoded = DeleteShares::try_from(decoded_expression).unwrap();

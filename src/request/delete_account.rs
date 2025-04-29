@@ -1,18 +1,18 @@
 use bc_envelope::prelude::*;
-use anyhow::{Error, Result};
+use anyhow::{ Error, Result };
 
-use crate::{DELETE_ACCOUNT_FUNCTION, util::FlankedFunction};
+use crate::{ DELETE_ACCOUNT_FUNCTION, util::FlankedFunction };
 
 //
 // Request
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeleteAccount ();
+pub struct DeleteAccount();
 
 impl DeleteAccount {
     pub fn new() -> Self {
-        Self ()
+        Self()
     }
 }
 
@@ -38,9 +38,7 @@ impl TryFrom<Expression> for DeleteAccount {
 
 impl std::fmt::Display for DeleteAccount {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}",
-            "deleteAccount".flanked_function(),
-        ))
+        f.write_fmt(format_args!("{}", "deleteAccount".flanked_function()))
     }
 }
 
@@ -53,15 +51,15 @@ mod tests {
     #[test]
     fn test_request() {
         bc_envelope::register_tags();
-        
+
         let request = DeleteAccount::new();
         let expression: Expression = request.clone().into();
         let request_envelope = expression.to_envelope();
 
         // println!("{}", request_envelope.format());
-        assert_eq!(request_envelope.format(),
-        indoc! {r#"
-        «"deleteAccount"»
+        #[rustfmt::skip]
+        assert_eq!(request_envelope.format(), indoc! {r#"
+            «"deleteAccount"»
         "#}.trim());
         let decoded_expression = Expression::try_from(request_envelope).unwrap();
         let decoded = DeleteAccount::try_from(decoded_expression).unwrap();

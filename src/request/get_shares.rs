@@ -1,25 +1,31 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{ HashMap, HashSet };
 
 use bc_envelope::prelude::*;
-use anyhow::{Error, Result};
+use anyhow::{ Error, Result };
 use gstp::prelude::*;
 
-use crate::{receipt::Receipt, GET_SHARES_FUNCTION, RECEIPT_PARAM, util::{Abbrev, FlankedFunction}};
+use crate::{
+    receipt::Receipt,
+    GET_SHARES_FUNCTION,
+    RECEIPT_PARAM,
+    util::{ Abbrev, FlankedFunction },
+};
 
 //
 // Request
 //
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetShares (HashSet<Receipt>);
+pub struct GetShares(HashSet<Receipt>);
 
 impl GetShares {
-    pub fn new<I, T>(iterable: I) -> Self
-    where
-        I: IntoIterator<Item = T>,
-        T: Clone + Into<Receipt>,
-    {
-        Self(iterable.into_iter().map(|item| item.clone().into()).collect())
+    pub fn new<I, T>(iterable: I) -> Self where I: IntoIterator<Item = T>, T: Clone + Into<Receipt> {
+        Self(
+            iterable
+                .into_iter()
+                .map(|item| item.clone().into())
+                .collect()
+        )
     }
 
     pub fn new_all_shares() -> Self {
@@ -56,10 +62,7 @@ impl TryFrom<Expression> for GetShares {
 
 impl std::fmt::Display for GetShares {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} {}",
-            "getShares".flanked_function(),
-            self.receipts().abbrev(),
-        ))
+        f.write_fmt(format_args!("{} {}", "getShares".flanked_function(), self.receipts().abbrev()))
     }
 }
 
@@ -119,14 +122,12 @@ impl TryFrom<SealedResponse> for GetSharesResult {
 
 impl std::fmt::Display for GetSharesResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let abbrevable: HashMap<Receipt, ByteString> = self.receipt_to_data()
+        let abbrevable: HashMap<Receipt, ByteString> = self
+            .receipt_to_data()
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
-        f.write_fmt(format_args!("{} OK {}",
-            "getShares".flanked_function(),
-            abbrevable.abbrev()
-        ))
+        f.write_fmt(format_args!("{} OK {}", "getShares".flanked_function(), abbrevable.abbrev()))
     }
 }
 
@@ -138,10 +139,9 @@ mod tests {
     use super::*;
 
     fn user_id() -> XID {
-        XID::from_data_ref(hex_literal::hex!(
-            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
-        ))
-        .unwrap()
+        XID::from_data_ref(
+            hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")
+        ).unwrap()
     }
 
     fn data_1() -> ByteString {
@@ -170,15 +170,16 @@ mod tests {
         let expression: Expression = request.clone().into();
         let request_envelope = expression.to_envelope();
         // println!("{}", request_envelope.format());
+        #[rustfmt::skip]
         assert_eq!(request_envelope.format(), indoc! {r#"
-        «"getShares"» [
-            ❰"receipt"❱: Bytes(32) [
-                'isA': "Receipt"
+            «"getShares"» [
+                ❰"receipt"❱: Bytes(32) [
+                    'isA': "Receipt"
+                ]
+                ❰"receipt"❱: Bytes(32) [
+                    'isA': "Receipt"
+                ]
             ]
-            ❰"receipt"❱: Bytes(32) [
-                'isA': "Receipt"
-            ]
-        ]
         "#}.trim());
         let decoded_expression = Expression::try_from(request_envelope).unwrap();
         let decoded = GetShares::try_from(decoded_expression).unwrap();
@@ -195,17 +196,18 @@ mod tests {
         let response = GetSharesResult::new(receipts_to_data);
         let response_envelope = response.to_envelope();
         // println!("{}", response_envelope.format());
+        #[rustfmt::skip]
         assert_eq!(response_envelope.format(), indoc! {r#"
-        'OK' [
-            Bytes(32) [
-                'isA': "Receipt"
+            'OK' [
+                Bytes(32) [
+                    'isA': "Receipt"
+                ]
+                : Bytes(6)
+                Bytes(32) [
+                    'isA': "Receipt"
+                ]
+                : Bytes(6)
             ]
-            : Bytes(6)
-            Bytes(32) [
-                'isA': "Receipt"
-            ]
-            : Bytes(6)
-        ]
         "#}.trim());
         let decoded = GetSharesResult::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);

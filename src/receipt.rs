@@ -65,11 +65,11 @@ mod tests {
 
         let envelope = receipt.clone().to_envelope();
         assert_eq!(format!("{}", envelope.ur_string()), "ur:envelope/lftpsohdcxbgryatktiacpbteycnynsnjywktlbyaxwznskgosbdiskohhtpwybwspglvwadgmoyadtpsoiogmihiaihinjojyamdwplrf");
-        assert_eq!(envelope.format(),
-        indoc!{r#"
-        Bytes(32) [
-            'isA': "Receipt"
-        ]
+        #[rustfmt::skip]
+        assert_eq!(envelope.format(), indoc!{r#"
+            Bytes(32) [
+                'isA': "Receipt"
+            ]
         "#}.trim());
 
         let receipt_2 = Receipt::try_from(envelope).unwrap();
