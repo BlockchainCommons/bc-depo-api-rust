@@ -1,14 +1,11 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
-use bc_components::{ARID, PublicKeys, PrivateKeyBase};
+use bc_components::{ARID, PrivateKeyBase, PublicKeys};
 use bc_envelope::prelude::*;
 
 use crate::Receipt;
 
-
-pub fn prefix(s: &str, len: usize) -> String {
-    s.chars().take(len).collect()
-}
+pub fn prefix(s: &str, len: usize) -> String { s.chars().take(len).collect() }
 
 pub trait Prefix {
     fn prefix(&self, len: usize) -> String;
@@ -18,14 +15,17 @@ impl<T> Prefix for T
 where
     T: AsRef<str>,
 {
-    fn prefix(&self, len: usize) -> String {
-        prefix(self.as_ref(), len)
-    }
+    fn prefix(&self, len: usize) -> String { prefix(self.as_ref(), len) }
 }
 
-
 pub fn suffix(s: &str, len: usize) -> String {
-    s.chars().rev().take(len).collect::<String>().chars().rev().collect()
+    s.chars()
+        .rev()
+        .take(len)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect()
 }
 
 pub trait Suffix {
@@ -36,11 +36,8 @@ impl<T> Suffix for T
 where
     T: AsRef<str>,
 {
-    fn suffix(&self, len: usize) -> String {
-        suffix(self.as_ref(), len)
-    }
+    fn suffix(&self, len: usize) -> String { suffix(self.as_ref(), len) }
 }
-
 
 pub fn flanked_by(s: &str, left: &str, right: &str) -> String {
     left.to_owned() + s + right
@@ -59,9 +56,7 @@ where
     }
 }
 
-pub fn flanked_abbrev(s: &str) -> String {
-    s.flanked_by("<", ">")
-}
+pub fn flanked_abbrev(s: &str) -> String { s.flanked_by("<", ">") }
 
 pub trait FlankedAbbrev {
     fn flanked_abbrev(&self) -> String;
@@ -71,14 +66,10 @@ impl<T> FlankedAbbrev for T
 where
     T: AsRef<str>,
 {
-    fn flanked_abbrev(&self) -> String {
-        flanked_abbrev(self.as_ref())
-    }
+    fn flanked_abbrev(&self) -> String { flanked_abbrev(self.as_ref()) }
 }
 
-pub fn flanked_function(s: &str) -> String {
-    s.flanked_by("«", "»")
-}
+pub fn flanked_function(s: &str) -> String { s.flanked_by("«", "»") }
 
 pub trait FlankedFunction {
     fn flanked_function(&self) -> String;
@@ -88,9 +79,7 @@ impl<T> FlankedFunction for T
 where
     T: AsRef<str>,
 {
-    fn flanked_function(&self) -> String {
-        flanked_function(self.as_ref())
-    }
+    fn flanked_function(&self) -> String { flanked_function(self.as_ref()) }
 }
 
 pub trait Abbrev {
@@ -110,57 +99,39 @@ fn abbreviate_opt_string(s: Option<impl AsRef<str>>) -> String {
 }
 
 impl Abbrev for str {
-    fn abbrev(&self) -> String {
-        abbreviate_string(self)
-    }
+    fn abbrev(&self) -> String { abbreviate_string(self) }
 }
 
 impl Abbrev for String {
-    fn abbrev(&self) -> String {
-        abbreviate_string(self)
-    }
+    fn abbrev(&self) -> String { abbreviate_string(self) }
 }
 
 impl Abbrev for Option<String> {
-    fn abbrev(&self) -> String {
-        abbreviate_opt_string(self.as_deref())
-    }
+    fn abbrev(&self) -> String { abbreviate_opt_string(self.as_deref()) }
 }
 
 impl Abbrev for Option<&String> {
-    fn abbrev(&self) -> String {
-        abbreviate_opt_string(self.as_deref())
-    }
+    fn abbrev(&self) -> String { abbreviate_opt_string(self.as_deref()) }
 }
 
 impl Abbrev for Option<&str> {
-    fn abbrev(&self) -> String {
-        abbreviate_opt_string(self.as_deref())
-    }
+    fn abbrev(&self) -> String { abbreviate_opt_string(self.as_deref()) }
 }
 
 impl Abbrev for ARID {
-    fn abbrev(&self) -> String {
-        self.ur_string().suffix(8).flanked_abbrev()
-    }
+    fn abbrev(&self) -> String { self.ur_string().suffix(8).flanked_abbrev() }
 }
 
 impl Abbrev for PublicKeys {
-    fn abbrev(&self) -> String {
-        self.ur_string().suffix(8).flanked_abbrev()
-    }
+    fn abbrev(&self) -> String { self.ur_string().suffix(8).flanked_abbrev() }
 }
 
 impl Abbrev for PrivateKeyBase {
-    fn abbrev(&self) -> String {
-        self.ur_string().suffix(8).flanked_abbrev()
-    }
+    fn abbrev(&self) -> String { self.ur_string().suffix(8).flanked_abbrev() }
 }
 
 impl Abbrev for Envelope {
-    fn abbrev(&self) -> String {
-        self.ur_string().suffix(8).flanked_abbrev()
-    }
+    fn abbrev(&self) -> String { self.ur_string().suffix(8).flanked_abbrev() }
 }
 
 impl Abbrev for Receipt {

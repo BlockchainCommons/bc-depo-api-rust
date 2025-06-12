@@ -1,13 +1,12 @@
 use std::collections::HashSet;
 
+use anyhow::{Error, Result};
 use bc_envelope::prelude::*;
-use anyhow::{ Error, Result };
 
 use crate::{
+    DELETE_SHARES_FUNCTION, RECEIPT_PARAM,
     receipt::Receipt,
-    DELETE_SHARES_FUNCTION,
-    RECEIPT_PARAM,
-    util::{ Abbrev, FlankedFunction },
+    util::{Abbrev, FlankedFunction},
 };
 
 //
@@ -18,18 +17,20 @@ use crate::{
 pub struct DeleteShares(HashSet<Receipt>);
 
 impl DeleteShares {
-    pub fn new<I, T>(iterable: I) -> Self where I: IntoIterator<Item = T>, T: Clone + Into<Receipt> {
+    pub fn new<I, T>(iterable: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Clone + Into<Receipt>,
+    {
         Self(
             iterable
                 .into_iter()
                 .map(|item| item.clone().into())
-                .collect()
+                .collect(),
         )
     }
 
-    pub fn receipts(&self) -> &HashSet<Receipt> {
-        &self.0
-    }
+    pub fn receipts(&self) -> &HashSet<Receipt> { &self.0 }
 }
 
 impl From<DeleteShares> for Expression {
@@ -57,9 +58,11 @@ impl TryFrom<Expression> for DeleteShares {
 
 impl std::fmt::Display for DeleteShares {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(
-            format_args!("{} {}", "deleteShares".flanked_function(), self.receipts().abbrev())
-        )
+        f.write_fmt(format_args!(
+            "{} {}",
+            "deleteShares".flanked_function(),
+            self.receipts().abbrev()
+        ))
     }
 }
 
@@ -71,18 +74,15 @@ mod tests {
     use super::*;
 
     fn user_id() -> XID {
-        XID::from_data_ref(
-            hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")
-        ).unwrap()
+        XID::from_data_ref(hex_literal::hex!(
+            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
+        ))
+        .unwrap()
     }
 
-    fn receipt_1() -> Receipt {
-        Receipt::new(user_id(), b"data_1")
-    }
+    fn receipt_1() -> Receipt { Receipt::new(user_id(), b"data_1") }
 
-    fn receipt_2() -> Receipt {
-        Receipt::new(user_id(), b"data_2")
-    }
+    fn receipt_2() -> Receipt { Receipt::new(user_id(), b"data_2") }
 
     #[test]
     fn test_request() {
@@ -105,7 +105,8 @@ mod tests {
                 ]
             ]
         "#}.trim());
-        let decoded_expression = Expression::try_from(request_envelope).unwrap();
+        let decoded_expression =
+            Expression::try_from(request_envelope).unwrap();
         let decoded = DeleteShares::try_from(decoded_expression).unwrap();
         assert_eq!(request, decoded);
     }

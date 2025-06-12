@@ -1,7 +1,7 @@
+use anyhow::{Error, Result};
 use bc_envelope::prelude::*;
-use anyhow::{ Error, Result };
 
-use crate::{ FINISH_RECOVERY_FUNCTION, util::FlankedFunction };
+use crate::{FINISH_RECOVERY_FUNCTION, util::FlankedFunction};
 
 //
 // Request
@@ -11,15 +11,11 @@ use crate::{ FINISH_RECOVERY_FUNCTION, util::FlankedFunction };
 pub struct FinishRecovery();
 
 impl FinishRecovery {
-    pub fn new() -> Self {
-        Self()
-    }
+    pub fn new() -> Self { Self() }
 }
 
 impl Default for FinishRecovery {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl From<FinishRecovery> for Expression {
@@ -31,9 +27,7 @@ impl From<FinishRecovery> for Expression {
 impl TryFrom<Expression> for FinishRecovery {
     type Error = Error;
 
-    fn try_from(_: Expression) -> Result<Self> {
-        Ok(Self::new())
-    }
+    fn try_from(_: Expression) -> Result<Self> { Ok(Self::new()) }
 }
 
 impl std::fmt::Display for FinishRecovery {
@@ -60,7 +54,8 @@ mod tests {
         assert_eq!(request_envelope.format(), indoc! {r#"
             «"finishRecovery"»
         "#}.trim());
-        let decoded_expression = Expression::try_from(request_envelope).unwrap();
+        let decoded_expression =
+            Expression::try_from(request_envelope).unwrap();
         let decoded = FinishRecovery::try_from(decoded_expression).unwrap();
         assert_eq!(request, decoded);
     }

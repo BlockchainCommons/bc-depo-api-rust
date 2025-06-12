@@ -1,6 +1,6 @@
+use anyhow::{Error, Result};
 use bc_components::XID;
 use bc_envelope::prelude::*;
-use anyhow::{Error, Result};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Receipt(Digest);
@@ -16,9 +16,7 @@ impl Receipt {
 impl std::ops::Deref for Receipt {
     type Target = Digest;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 impl std::fmt::Debug for Receipt {
@@ -46,25 +44,33 @@ impl TryFrom<Envelope> for Receipt {
 }
 
 impl From<&Receipt> for Receipt {
-    fn from(receipt: &Receipt) -> Self {
-        receipt.clone()
-    }
+    fn from(receipt: &Receipt) -> Self { receipt.clone() }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use hex_literal::hex;
     use indoc::indoc;
 
+    use super::*;
+
     #[test]
     fn test_receipt() {
-        let user_id = XID::from_data_ref(hex!("3eadf5bf7a4da69f824be029d2d0ece06fcb3aca7dd85d402b661f7b48f18294")).unwrap();
+        let user_id = XID::from_data_ref(hex!(
+            "3eadf5bf7a4da69f824be029d2d0ece06fcb3aca7dd85d402b661f7b48f18294"
+        ))
+        .unwrap();
         let receipt = Receipt::new(user_id, b"data");
-        assert_eq!(format!("{:?}", receipt), "Receipt(12bd077763220d3223f6cd74f4d51103f29c7ba70b68765cd8ee13c84ee50152)");
+        assert_eq!(
+            format!("{:?}", receipt),
+            "Receipt(12bd077763220d3223f6cd74f4d51103f29c7ba70b68765cd8ee13c84ee50152)"
+        );
 
         let envelope = receipt.clone().to_envelope();
-        assert_eq!(format!("{}", envelope.ur_string()), "ur:envelope/lftpsohdcxbgryatktiacpbteycnynsnjywktlbyaxwznskgosbdiskohhtpwybwspglvwadgmoyadtpsoiogmihiaihinjojyamdwplrf");
+        assert_eq!(
+            format!("{}", envelope.ur_string()),
+            "ur:envelope/lftpsohdcxbgryatktiacpbteycnynsnjywktlbyaxwznskgosbdiskohhtpwybwspglvwadgmoyadtpsoiogmihiaihinjojyamdwplrf"
+        );
         #[rustfmt::skip]
         assert_eq!(envelope.format(), indoc!{r#"
             Bytes(32) [

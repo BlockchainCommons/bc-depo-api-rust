@@ -1,8 +1,11 @@
+use anyhow::{Error, Result};
 use bc_envelope::prelude::*;
-use anyhow::{ Error, Result };
 use gstp::prelude::*;
 
-use crate::{ GET_RECOVERY_FUNCTION, util::{ Abbrev, FlankedFunction } };
+use crate::{
+    GET_RECOVERY_FUNCTION,
+    util::{Abbrev, FlankedFunction},
+};
 
 //
 // Request
@@ -12,29 +15,21 @@ use crate::{ GET_RECOVERY_FUNCTION, util::{ Abbrev, FlankedFunction } };
 pub struct GetRecovery();
 
 impl GetRecovery {
-    pub fn new() -> Self {
-        Self()
-    }
+    pub fn new() -> Self { Self() }
 }
 
 impl Default for GetRecovery {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl From<GetRecovery> for Expression {
-    fn from(_: GetRecovery) -> Self {
-        Expression::new(GET_RECOVERY_FUNCTION)
-    }
+    fn from(_: GetRecovery) -> Self { Expression::new(GET_RECOVERY_FUNCTION) }
 }
 
 impl TryFrom<Expression> for GetRecovery {
     type Error = Error;
 
-    fn try_from(_: Expression) -> Result<Self> {
-        Ok(Self::new())
-    }
+    fn try_from(_: Expression) -> Result<Self> { Ok(Self::new()) }
 }
 
 impl std::fmt::Display for GetRecovery {
@@ -51,13 +46,9 @@ impl std::fmt::Display for GetRecovery {
 pub struct GetRecoveryResult(Option<String>);
 
 impl GetRecoveryResult {
-    pub fn new(recovery: Option<String>) -> Self {
-        Self(recovery)
-    }
+    pub fn new(recovery: Option<String>) -> Self { Self(recovery) }
 
-    pub fn recovery(&self) -> Option<&str> {
-        self.0.as_deref()
-    }
+    pub fn recovery(&self) -> Option<&str> { self.0.as_deref() }
 }
 
 impl From<GetRecoveryResult> for Envelope {
@@ -70,7 +61,11 @@ impl TryFrom<Envelope> for GetRecoveryResult {
     type Error = Error;
 
     fn try_from(envelope: Envelope) -> Result<Self> {
-        let recovery = if envelope.is_null() { None } else { Some(envelope.extract_subject()?) };
+        let recovery = if envelope.is_null() {
+            None
+        } else {
+            Some(envelope.extract_subject()?)
+        };
         Ok(Self::new(recovery))
     }
 }
@@ -85,9 +80,11 @@ impl TryFrom<SealedResponse> for GetRecoveryResult {
 
 impl std::fmt::Display for GetRecoveryResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(
-            format_args!("{} OK: {}", "getRecovery".flanked_function(), self.recovery().abbrev())
-        )
+        f.write_fmt(format_args!(
+            "{} OK: {}",
+            "getRecovery".flanked_function(),
+            self.recovery().abbrev()
+        ))
     }
 }
 
@@ -108,7 +105,8 @@ mod tests {
         assert_eq!(request_envelope.format(), indoc! {r#"
             «"getRecovery"»
         "#}.trim());
-        let decoded_expression = Expression::try_from(request_envelope).unwrap();
+        let decoded_expression =
+            Expression::try_from(request_envelope).unwrap();
         let decoded = GetRecovery::try_from(decoded_expression).unwrap();
         assert_eq!(request, decoded);
     }
@@ -121,13 +119,12 @@ mod tests {
         let response_envelope = response.to_envelope();
         assert_eq!(
             response_envelope.format(),
-            (
-                indoc! {
-                    r#"
+            (indoc! {
+                r#"
         "Recovery Method"
         "#
-                }
-            ).trim()
+            })
+            .trim()
         );
         let decoded = GetRecoveryResult::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);
@@ -136,13 +133,12 @@ mod tests {
         let response_envelope = response.to_envelope();
         assert_eq!(
             response_envelope.format(),
-            (
-                indoc! {
-                    r#"
+            (indoc! {
+                r#"
         null
         "#
-                }
-            ).trim()
+            })
+            .trim()
         );
         let decoded = GetRecoveryResult::try_from(response_envelope).unwrap();
         assert_eq!(response, decoded);

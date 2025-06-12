@@ -1,14 +1,13 @@
-use std::collections::{ HashMap, HashSet };
+use std::collections::{HashMap, HashSet};
 
+use anyhow::{Error, Result};
 use bc_envelope::prelude::*;
-use anyhow::{ Error, Result };
 use gstp::prelude::*;
 
 use crate::{
+    GET_SHARES_FUNCTION, RECEIPT_PARAM,
     receipt::Receipt,
-    GET_SHARES_FUNCTION,
-    RECEIPT_PARAM,
-    util::{ Abbrev, FlankedFunction },
+    util::{Abbrev, FlankedFunction},
 };
 
 //
@@ -19,22 +18,22 @@ use crate::{
 pub struct GetShares(HashSet<Receipt>);
 
 impl GetShares {
-    pub fn new<I, T>(iterable: I) -> Self where I: IntoIterator<Item = T>, T: Clone + Into<Receipt> {
+    pub fn new<I, T>(iterable: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Clone + Into<Receipt>,
+    {
         Self(
             iterable
                 .into_iter()
                 .map(|item| item.clone().into())
-                .collect()
+                .collect(),
         )
     }
 
-    pub fn new_all_shares() -> Self {
-        Self(HashSet::new())
-    }
+    pub fn new_all_shares() -> Self { Self(HashSet::new()) }
 
-    pub fn receipts(&self) -> &HashSet<Receipt> {
-        &self.0
-    }
+    pub fn receipts(&self) -> &HashSet<Receipt> { &self.0 }
 }
 
 impl From<GetShares> for Expression {
@@ -62,7 +61,11 @@ impl TryFrom<Expression> for GetShares {
 
 impl std::fmt::Display for GetShares {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} {}", "getShares".flanked_function(), self.receipts().abbrev()))
+        f.write_fmt(format_args!(
+            "{} {}",
+            "getShares".flanked_function(),
+            self.receipts().abbrev()
+        ))
     }
 }
 
@@ -78,9 +81,7 @@ impl GetSharesResult {
         Self(receipt_to_data)
     }
 
-    pub fn receipt_to_data(&self) -> &HashMap<Receipt, ByteString> {
-        &self.0
-    }
+    pub fn receipt_to_data(&self) -> &HashMap<Receipt, ByteString> { &self.0 }
 
     pub fn data_for_receipt(&self, receipt: &Receipt) -> Option<&ByteString> {
         self.0.get(receipt)
@@ -127,7 +128,11 @@ impl std::fmt::Display for GetSharesResult {
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
-        f.write_fmt(format_args!("{} OK {}", "getShares".flanked_function(), abbrevable.abbrev()))
+        f.write_fmt(format_args!(
+            "{} OK {}",
+            "getShares".flanked_function(),
+            abbrevable.abbrev()
+        ))
     }
 }
 
@@ -139,26 +144,19 @@ mod tests {
     use super::*;
 
     fn user_id() -> XID {
-        XID::from_data_ref(
-            hex_literal::hex!("8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30")
-        ).unwrap()
+        XID::from_data_ref(hex_literal::hex!(
+            "8712dfac3d0ebfa910736b2a9ee39d4b68f64222a77bcc0074f3f5f1c9216d30"
+        ))
+        .unwrap()
     }
 
-    fn data_1() -> ByteString {
-        b"data_1".to_vec().into()
-    }
+    fn data_1() -> ByteString { b"data_1".to_vec().into() }
 
-    fn receipt_1() -> Receipt {
-        Receipt::new(user_id(), data_1())
-    }
+    fn receipt_1() -> Receipt { Receipt::new(user_id(), data_1()) }
 
-    fn data_2() -> ByteString {
-        b"data_2".to_vec().into()
-    }
+    fn data_2() -> ByteString { b"data_2".to_vec().into() }
 
-    fn receipt_2() -> Receipt {
-        Receipt::new(user_id(), data_2())
-    }
+    fn receipt_2() -> Receipt { Receipt::new(user_id(), data_2()) }
 
     #[test]
     fn test_request() {
@@ -181,7 +179,8 @@ mod tests {
                 ]
             ]
         "#}.trim());
-        let decoded_expression = Expression::try_from(request_envelope).unwrap();
+        let decoded_expression =
+            Expression::try_from(request_envelope).unwrap();
         let decoded = GetShares::try_from(decoded_expression).unwrap();
         assert_eq!(request, decoded);
     }
@@ -190,9 +189,10 @@ mod tests {
     fn test_response() {
         bc_envelope::register_tags();
 
-        let receipts_to_data = vec![(receipt_1(), data_1()), (receipt_2(), data_2())]
-            .into_iter()
-            .collect();
+        let receipts_to_data =
+            vec![(receipt_1(), data_1()), (receipt_2(), data_2())]
+                .into_iter()
+                .collect();
         let response = GetSharesResult::new(receipts_to_data);
         let response_envelope = response.to_envelope();
         // println!("{}", response_envelope.format());
