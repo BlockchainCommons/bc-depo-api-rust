@@ -21,3 +21,9 @@ This is an early development release. It is not yet ready for production use.
 
 Please see the [`depo`](https://crates.io/crates/depo) crate for more
 information.
+
+## Version History
+
+### 0.14.0 - July 3, 2025
+- Align to dependencies.
+- Improve code formatting and consistency.
