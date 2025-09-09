@@ -17,9 +17,7 @@ impl Receipt {
 impl std::ops::Deref for Receipt {
     type Target = Digest;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 impl std::fmt::Debug for Receipt {
@@ -64,9 +62,7 @@ impl TryFrom<Envelope> for Receipt {
 }
 
 impl From<&Receipt> for Receipt {
-    fn from(receipt: &Receipt) -> Self {
-        receipt.clone()
-    }
+    fn from(receipt: &Receipt) -> Self { receipt.clone() }
 }
 
 #[cfg(test)]

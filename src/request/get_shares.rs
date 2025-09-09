@@ -30,13 +30,9 @@ impl GetShares {
         )
     }
 
-    pub fn new_all_shares() -> Self {
-        Self(HashSet::new())
-    }
+    pub fn new_all_shares() -> Self { Self(HashSet::new()) }
 
-    pub fn receipts(&self) -> &HashSet<Receipt> {
-        &self.0
-    }
+    pub fn receipts(&self) -> &HashSet<Receipt> { &self.0 }
 }
 
 impl From<GetShares> for Expression {
@@ -89,9 +85,7 @@ impl GetSharesResult {
         Self(receipt_to_data)
     }
 
-    pub fn receipt_to_data(&self) -> &HashMap<Receipt, ByteString> {
-        &self.0
-    }
+    pub fn receipt_to_data(&self) -> &HashMap<Receipt, ByteString> { &self.0 }
 
     pub fn data_for_receipt(&self, receipt: &Receipt) -> Option<&ByteString> {
         self.0.get(receipt)
@@ -185,21 +179,13 @@ mod tests {
         .unwrap()
     }
 
-    fn data_1() -> ByteString {
-        b"data_1".to_vec().into()
-    }
+    fn data_1() -> ByteString { b"data_1".to_vec().into() }
 
-    fn receipt_1() -> Receipt {
-        Receipt::new(user_id(), data_1())
-    }
+    fn receipt_1() -> Receipt { Receipt::new(user_id(), data_1()) }
 
-    fn data_2() -> ByteString {
-        b"data_2".to_vec().into()
-    }
+    fn data_2() -> ByteString { b"data_2".to_vec().into() }
 
-    fn receipt_2() -> Receipt {
-        Receipt::new(user_id(), data_2())
-    }
+    fn receipt_2() -> Receipt { Receipt::new(user_id(), data_2()) }
 
     #[test]
     fn test_request() {

@@ -14,13 +14,9 @@ use crate::{
 pub struct UpdateRecovery(Option<String>);
 
 impl UpdateRecovery {
-    pub fn new(recovery: Option<String>) -> Self {
-        Self(recovery)
-    }
+    pub fn new(recovery: Option<String>) -> Self { Self(recovery) }
 
-    pub fn recovery(&self) -> Option<&String> {
-        self.0.as_ref()
-    }
+    pub fn recovery(&self) -> Option<&String> { self.0.as_ref() }
 }
 
 impl From<UpdateRecovery> for Expression {

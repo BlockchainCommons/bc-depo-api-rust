@@ -15,13 +15,9 @@ use crate::{
 pub struct StoreShare(ByteString);
 
 impl StoreShare {
-    pub fn new(data: impl Into<ByteString>) -> Self {
-        Self(data.into())
-    }
+    pub fn new(data: impl Into<ByteString>) -> Self { Self(data.into()) }
 
-    pub fn data(&self) -> &[u8] {
-        self.0.as_ref()
-    }
+    pub fn data(&self) -> &[u8] { self.0.as_ref() }
 }
 
 impl From<StoreShare> for Expression {
@@ -63,19 +59,13 @@ impl std::fmt::Display for StoreShare {
 pub struct StoreShareResult(Receipt);
 
 impl StoreShareResult {
-    pub fn new(receipt: Receipt) -> Self {
-        Self(receipt)
-    }
+    pub fn new(receipt: Receipt) -> Self { Self(receipt) }
 
-    pub fn receipt(&self) -> &Receipt {
-        &self.0
-    }
+    pub fn receipt(&self) -> &Receipt { &self.0 }
 }
 
 impl From<StoreShareResult> for Envelope {
-    fn from(value: StoreShareResult) -> Self {
-        value.0.into_envelope()
-    }
+    fn from(value: StoreShareResult) -> Self { value.0.into_envelope() }
 }
 
 impl TryFrom<Envelope> for StoreShareResult {

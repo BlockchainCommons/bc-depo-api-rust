@@ -15,13 +15,9 @@ use crate::{
 pub struct UpdateXIDDocument(XIDDocument);
 
 impl UpdateXIDDocument {
-    pub fn new(new_xid_document: XIDDocument) -> Self {
-        Self(new_xid_document)
-    }
+    pub fn new(new_xid_document: XIDDocument) -> Self { Self(new_xid_document) }
 
-    pub fn new_xid_document(&self) -> &XIDDocument {
-        &self.0
-    }
+    pub fn new_xid_document(&self) -> &XIDDocument { &self.0 }
 }
 
 impl From<UpdateXIDDocument> for Expression {

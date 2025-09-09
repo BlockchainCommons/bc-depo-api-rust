@@ -14,13 +14,9 @@ use crate::{
 pub struct StartRecovery(String);
 
 impl StartRecovery {
-    pub fn new(recovery: String) -> Self {
-        Self(recovery)
-    }
+    pub fn new(recovery: String) -> Self { Self(recovery) }
 
-    pub fn recovery(&self) -> &str {
-        self.0.as_ref()
-    }
+    pub fn recovery(&self) -> &str { self.0.as_ref() }
 }
 
 impl From<StartRecovery> for Expression {
