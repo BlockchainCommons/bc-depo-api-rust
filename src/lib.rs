@@ -1,3 +1,6 @@
+mod error;
+use error::{Error, Result};
+
 pub mod receipt;
 pub use receipt::Receipt;
 

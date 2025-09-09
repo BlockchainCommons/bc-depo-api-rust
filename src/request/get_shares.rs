@@ -1,11 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use anyhow::{Error, Result};
 use bc_envelope::prelude::*;
 use gstp::prelude::*;
 
 use crate::{
-    GET_SHARES_FUNCTION, RECEIPT_PARAM,
+    Error, GET_SHARES_FUNCTION, RECEIPT_PARAM, RECEIPT_PARAM_NAME, Result,
     receipt::Receipt,
     util::{Abbrev, FlankedFunction},
 };
@@ -31,9 +30,13 @@ impl GetShares {
         )
     }
 
-    pub fn new_all_shares() -> Self { Self(HashSet::new()) }
+    pub fn new_all_shares() -> Self {
+        Self(HashSet::new())
+    }
 
-    pub fn receipts(&self) -> &HashSet<Receipt> { &self.0 }
+    pub fn receipts(&self) -> &HashSet<Receipt> {
+        &self.0
+    }
 }
 
 impl From<GetShares> for Expression {
@@ -53,7 +56,12 @@ impl TryFrom<Expression> for GetShares {
         let receipts = expression
             .objects_for_parameter(RECEIPT_PARAM)
             .into_iter()
-            .map(|parameter| parameter.try_into())
+            .map(|parameter| {
+                parameter.try_into().map_err(|e| Error::InvalidParameter {
+                    parameter: RECEIPT_PARAM_NAME.to_string(),
+                    message: format!("failed to convert to Receipt: {}", e),
+                })
+            })
             .collect::<Result<HashSet<Receipt>>>()?;
         Ok(Self(receipts))
     }
@@ -81,7 +89,9 @@ impl GetSharesResult {
         Self(receipt_to_data)
     }
 
-    pub fn receipt_to_data(&self) -> &HashMap<Receipt, ByteString> { &self.0 }
+    pub fn receipt_to_data(&self) -> &HashMap<Receipt, ByteString> {
+        &self.0
+    }
 
     pub fn data_for_receipt(&self, receipt: &Receipt) -> Option<&ByteString> {
         self.0.get(receipt)
@@ -104,9 +114,34 @@ impl TryFrom<Envelope> for GetSharesResult {
     fn try_from(envelope: Envelope) -> Result<Self> {
         let mut receipt_to_data = HashMap::new();
         for assertion in envelope.assertions() {
-            let receipt = Receipt::try_from(assertion.try_predicate()?)?;
-            let object = assertion.try_object()?;
-            let data = ByteString::try_from(object)?;
+            let receipt =
+                Receipt::try_from(assertion.try_predicate().map_err(|e| {
+                    Error::InvalidEnvelope {
+                        message: format!(
+                            "failed to extract assertion predicate: {}",
+                            e
+                        ),
+                    }
+                })?)
+                .map_err(|e| Error::InvalidParameter {
+                    parameter: RECEIPT_PARAM_NAME.to_string(),
+                    message: format!("invalid receipt in assertion: {}", e),
+                })?;
+            let object =
+                assertion.try_object().map_err(|e| Error::InvalidEnvelope {
+                    message: format!(
+                        "failed to extract assertion object: {}",
+                        e
+                    ),
+                })?;
+            let data = ByteString::try_from(object).map_err(|e| {
+                Error::InvalidEnvelope {
+                    message: format!(
+                        "failed to convert object to ByteString: {}",
+                        e
+                    ),
+                }
+            })?;
             receipt_to_data.insert(receipt, data);
         }
         Ok(Self::new(receipt_to_data))
@@ -150,13 +185,21 @@ mod tests {
         .unwrap()
     }
 
-    fn data_1() -> ByteString { b"data_1".to_vec().into() }
+    fn data_1() -> ByteString {
+        b"data_1".to_vec().into()
+    }
 
-    fn receipt_1() -> Receipt { Receipt::new(user_id(), data_1()) }
+    fn receipt_1() -> Receipt {
+        Receipt::new(user_id(), data_1())
+    }
 
-    fn data_2() -> ByteString { b"data_2".to_vec().into() }
+    fn data_2() -> ByteString {
+        b"data_2".to_vec().into()
+    }
 
-    fn receipt_2() -> Receipt { Receipt::new(user_id(), data_2()) }
+    fn receipt_2() -> Receipt {
+        Receipt::new(user_id(), data_2())
+    }
 
     #[test]
     fn test_request() {

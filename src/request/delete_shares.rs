@@ -1,10 +1,9 @@
 use std::collections::HashSet;
 
-use anyhow::{Error, Result};
 use bc_envelope::prelude::*;
 
 use crate::{
-    DELETE_SHARES_FUNCTION, RECEIPT_PARAM,
+    DELETE_SHARES_FUNCTION, Error, RECEIPT_PARAM, RECEIPT_PARAM_NAME, Result,
     receipt::Receipt,
     util::{Abbrev, FlankedFunction},
 };
@@ -30,7 +29,9 @@ impl DeleteShares {
         )
     }
 
-    pub fn receipts(&self) -> &HashSet<Receipt> { &self.0 }
+    pub fn receipts(&self) -> &HashSet<Receipt> {
+        &self.0
+    }
 }
 
 impl From<DeleteShares> for Expression {
@@ -50,7 +51,12 @@ impl TryFrom<Expression> for DeleteShares {
         let receipts = expression
             .objects_for_parameter(RECEIPT_PARAM)
             .into_iter()
-            .map(|parameter| parameter.try_into())
+            .map(|parameter| {
+                parameter.try_into().map_err(|e| Error::InvalidParameter {
+                    parameter: RECEIPT_PARAM_NAME.to_string(),
+                    message: format!("failed to convert to Receipt: {}", e),
+                })
+            })
             .collect::<Result<HashSet<Receipt>>>()?;
         Ok(Self::new(receipts))
     }
@@ -80,9 +86,13 @@ mod tests {
         .unwrap()
     }
 
-    fn receipt_1() -> Receipt { Receipt::new(user_id(), b"data_1") }
+    fn receipt_1() -> Receipt {
+        Receipt::new(user_id(), b"data_1")
+    }
 
-    fn receipt_2() -> Receipt { Receipt::new(user_id(), b"data_2") }
+    fn receipt_2() -> Receipt {
+        Receipt::new(user_id(), b"data_2")
+    }
 
     #[test]
     fn test_request() {

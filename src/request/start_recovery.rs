@@ -1,8 +1,8 @@
-use anyhow::{Error, Result};
 use bc_envelope::prelude::*;
 
 use crate::{
-    RECOVERY_METHOD_PARAM, START_RECOVERY_FUNCTION,
+    Error, RECOVERY_METHOD_PARAM, RECOVERY_METHOD_PARAM_NAME, Result,
+    START_RECOVERY_FUNCTION,
     util::{Abbrev, FlankedFunction},
 };
 
@@ -14,9 +14,13 @@ use crate::{
 pub struct StartRecovery(String);
 
 impl StartRecovery {
-    pub fn new(recovery: String) -> Self { Self(recovery) }
+    pub fn new(recovery: String) -> Self {
+        Self(recovery)
+    }
 
-    pub fn recovery(&self) -> &str { self.0.as_ref() }
+    pub fn recovery(&self) -> &str {
+        self.0.as_ref()
+    }
 }
 
 impl From<StartRecovery> for Expression {
@@ -31,7 +35,11 @@ impl TryFrom<Expression> for StartRecovery {
 
     fn try_from(expression: Expression) -> Result<Self> {
         Ok(Self::new(
-            expression.extract_object_for_parameter(RECOVERY_METHOD_PARAM)?,
+            expression
+                .extract_object_for_parameter(RECOVERY_METHOD_PARAM)
+                .map_err(|_e| Error::MissingParameter {
+                    parameter: RECOVERY_METHOD_PARAM_NAME.to_string(),
+                })?,
         ))
     }
 }

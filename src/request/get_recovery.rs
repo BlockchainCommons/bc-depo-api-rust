@@ -1,9 +1,8 @@
-use anyhow::{Error, Result};
 use bc_envelope::prelude::*;
 use gstp::prelude::*;
 
 use crate::{
-    GET_RECOVERY_FUNCTION,
+    Error, GET_RECOVERY_FUNCTION, Result,
     util::{Abbrev, FlankedFunction},
 };
 
@@ -15,21 +14,29 @@ use crate::{
 pub struct GetRecovery();
 
 impl GetRecovery {
-    pub fn new() -> Self { Self() }
+    pub fn new() -> Self {
+        Self()
+    }
 }
 
 impl Default for GetRecovery {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl From<GetRecovery> for Expression {
-    fn from(_: GetRecovery) -> Self { Expression::new(GET_RECOVERY_FUNCTION) }
+    fn from(_: GetRecovery) -> Self {
+        Expression::new(GET_RECOVERY_FUNCTION)
+    }
 }
 
 impl TryFrom<Expression> for GetRecovery {
     type Error = Error;
 
-    fn try_from(_: Expression) -> Result<Self> { Ok(Self::new()) }
+    fn try_from(_: Expression) -> Result<Self> {
+        Ok(Self::new())
+    }
 }
 
 impl std::fmt::Display for GetRecovery {
@@ -46,9 +53,13 @@ impl std::fmt::Display for GetRecovery {
 pub struct GetRecoveryResult(Option<String>);
 
 impl GetRecoveryResult {
-    pub fn new(recovery: Option<String>) -> Self { Self(recovery) }
+    pub fn new(recovery: Option<String>) -> Self {
+        Self(recovery)
+    }
 
-    pub fn recovery(&self) -> Option<&str> { self.0.as_deref() }
+    pub fn recovery(&self) -> Option<&str> {
+        self.0.as_deref()
+    }
 }
 
 impl From<GetRecoveryResult> for Envelope {
@@ -64,7 +75,14 @@ impl TryFrom<Envelope> for GetRecoveryResult {
         let recovery = if envelope.is_null() {
             None
         } else {
-            Some(envelope.extract_subject()?)
+            Some(envelope.extract_subject().map_err(|e| {
+                Error::InvalidEnvelope {
+                    message: format!(
+                        "failed to extract recovery subject: {}",
+                        e
+                    ),
+                }
+            })?)
         };
         Ok(Self::new(recovery))
     }

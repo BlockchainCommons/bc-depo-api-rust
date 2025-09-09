@@ -1,7 +1,6 @@
-use anyhow::{Error, Result};
 use bc_envelope::prelude::*;
 
-use crate::{DELETE_ACCOUNT_FUNCTION, util::FlankedFunction};
+use crate::{DELETE_ACCOUNT_FUNCTION, Error, Result, util::FlankedFunction};
 
 //
 // Request
@@ -11,11 +10,15 @@ use crate::{DELETE_ACCOUNT_FUNCTION, util::FlankedFunction};
 pub struct DeleteAccount();
 
 impl DeleteAccount {
-    pub fn new() -> Self { Self() }
+    pub fn new() -> Self {
+        Self()
+    }
 }
 
 impl Default for DeleteAccount {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl From<DeleteAccount> for Expression {
@@ -27,7 +30,9 @@ impl From<DeleteAccount> for Expression {
 impl TryFrom<Expression> for DeleteAccount {
     type Error = Error;
 
-    fn try_from(_: Expression) -> Result<Self> { Ok(Self::new()) }
+    fn try_from(_: Expression) -> Result<Self> {
+        Ok(Self::new())
+    }
 }
 
 impl std::fmt::Display for DeleteAccount {

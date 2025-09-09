@@ -1,6 +1,7 @@
-use anyhow::{Error, Result};
 use bc_components::XID;
 use bc_envelope::prelude::*;
+
+use crate::{Error, Result};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Receipt(Digest);
@@ -16,7 +17,9 @@ impl Receipt {
 impl std::ops::Deref for Receipt {
     type Target = Digest;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl std::fmt::Debug for Receipt {
@@ -36,15 +39,34 @@ impl TryFrom<Envelope> for Receipt {
     type Error = Error;
 
     fn try_from(envelope: Envelope) -> Result<Self> {
-        envelope.check_type_envelope(RECEIPT_TYPE)?;
-        let bytes: ByteString = envelope.extract_subject()?;
-        let digest = Digest::from_data_ref(bytes.data())?;
+        envelope.check_type_envelope(RECEIPT_TYPE).map_err(|e| {
+            Error::TypeMismatch {
+                expected: RECEIPT_TYPE.to_string(),
+                found: format!("envelope without type or wrong type: {}", e),
+            }
+        })?;
+        let bytes: ByteString =
+            envelope
+                .extract_subject()
+                .map_err(|e| Error::InvalidEnvelope {
+                    message: format!(
+                        "failed to extract subject as bytes: {}",
+                        e
+                    ),
+                })?;
+        let digest = Digest::from_data_ref(bytes.data()).map_err(|e| {
+            Error::InvalidDigest {
+                message: format!("failed to create digest from bytes: {}", e),
+            }
+        })?;
         Ok(Self(digest))
     }
 }
 
 impl From<&Receipt> for Receipt {
-    fn from(receipt: &Receipt) -> Self { receipt.clone() }
+    fn from(receipt: &Receipt) -> Self {
+        receipt.clone()
+    }
 }
 
 #[cfg(test)]

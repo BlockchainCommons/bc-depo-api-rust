@@ -1,9 +1,8 @@
-use anyhow::{Error, Result};
 use bc_envelope::prelude::*;
 use gstp::prelude::*;
 
 use crate::{
-    DATA_PARAM, STORE_SHARE_FUNCTION,
+    DATA_PARAM, DATA_PARAM_NAME, Error, Result, STORE_SHARE_FUNCTION,
     receipt::Receipt,
     util::{Abbrev, FlankedFunction},
 };
@@ -16,9 +15,13 @@ use crate::{
 pub struct StoreShare(ByteString);
 
 impl StoreShare {
-    pub fn new(data: impl Into<ByteString>) -> Self { Self(data.into()) }
+    pub fn new(data: impl Into<ByteString>) -> Self {
+        Self(data.into())
+    }
 
-    pub fn data(&self) -> &[u8] { self.0.as_ref() }
+    pub fn data(&self) -> &[u8] {
+        self.0.as_ref()
+    }
 }
 
 impl From<StoreShare> for Expression {
@@ -34,7 +37,10 @@ impl TryFrom<Expression> for StoreShare {
     fn try_from(expression: Expression) -> Result<Self> {
         Ok(Self::new(
             expression
-                .extract_object_for_parameter::<ByteString>(DATA_PARAM)?,
+                .extract_object_for_parameter::<ByteString>(DATA_PARAM)
+                .map_err(|_e| Error::MissingParameter {
+                    parameter: DATA_PARAM_NAME.to_string(),
+                })?,
         ))
     }
 }
@@ -57,13 +63,19 @@ impl std::fmt::Display for StoreShare {
 pub struct StoreShareResult(Receipt);
 
 impl StoreShareResult {
-    pub fn new(receipt: Receipt) -> Self { Self(receipt) }
+    pub fn new(receipt: Receipt) -> Self {
+        Self(receipt)
+    }
 
-    pub fn receipt(&self) -> &Receipt { &self.0 }
+    pub fn receipt(&self) -> &Receipt {
+        &self.0
+    }
 }
 
 impl From<StoreShareResult> for Envelope {
-    fn from(value: StoreShareResult) -> Self { value.0.into_envelope() }
+    fn from(value: StoreShareResult) -> Self {
+        value.0.into_envelope()
+    }
 }
 
 impl TryFrom<Envelope> for StoreShareResult {

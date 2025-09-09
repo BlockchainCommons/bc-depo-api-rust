@@ -1,10 +1,10 @@
-use anyhow::{Error, Result};
 use bc_components::XIDProvider;
 use bc_envelope::prelude::*;
 use bc_xid::XIDDocument;
 
 use crate::{
-    NEW_XID_DOCUMENT_PARAM, UPDATE_XID_DOCUMENT_FUNCTION, util::FlankedFunction,
+    Error, NEW_XID_DOCUMENT_PARAM, NEW_XID_DOCUMENT_PARAM_NAME, Result,
+    UPDATE_XID_DOCUMENT_FUNCTION, util::FlankedFunction,
 };
 
 //
@@ -15,9 +15,13 @@ use crate::{
 pub struct UpdateXIDDocument(XIDDocument);
 
 impl UpdateXIDDocument {
-    pub fn new(new_xid_document: XIDDocument) -> Self { Self(new_xid_document) }
+    pub fn new(new_xid_document: XIDDocument) -> Self {
+        Self(new_xid_document)
+    }
 
-    pub fn new_xid_document(&self) -> &XIDDocument { &self.0 }
+    pub fn new_xid_document(&self) -> &XIDDocument {
+        &self.0
+    }
 }
 
 impl From<UpdateXIDDocument> for Expression {
@@ -31,9 +35,17 @@ impl TryFrom<Expression> for UpdateXIDDocument {
     type Error = Error;
 
     fn try_from(expression: Expression) -> Result<Self> {
-        let new_xid_document = XIDDocument::try_from(
-            expression.object_for_parameter(NEW_XID_DOCUMENT_PARAM)?,
-        )?;
+        let object = expression
+            .object_for_parameter(NEW_XID_DOCUMENT_PARAM)
+            .map_err(|_e| Error::MissingParameter {
+                parameter: NEW_XID_DOCUMENT_PARAM_NAME.to_string(),
+            })?;
+        let new_xid_document = XIDDocument::try_from(object).map_err(|e| {
+            Error::InvalidParameter {
+                parameter: NEW_XID_DOCUMENT_PARAM_NAME.to_string(),
+                message: format!("failed to convert to XIDDocument: {}", e),
+            }
+        })?;
         Ok(Self::new(new_xid_document))
     }
 }

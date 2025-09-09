@@ -1,8 +1,8 @@
-use anyhow::{Error, Result};
 use bc_envelope::prelude::*;
 
 use crate::{
-    RECOVERY_METHOD_PARAM, UPDATE_RECOVERY_FUNCTION,
+    Error, RECOVERY_METHOD_PARAM, RECOVERY_METHOD_PARAM_NAME, Result,
+    UPDATE_RECOVERY_FUNCTION,
     util::{Abbrev, FlankedFunction},
 };
 
@@ -14,9 +14,13 @@ use crate::{
 pub struct UpdateRecovery(Option<String>);
 
 impl UpdateRecovery {
-    pub fn new(recovery: Option<String>) -> Self { Self(recovery) }
+    pub fn new(recovery: Option<String>) -> Self {
+        Self(recovery)
+    }
 
-    pub fn recovery(&self) -> Option<&String> { self.0.as_ref() }
+    pub fn recovery(&self) -> Option<&String> {
+        self.0.as_ref()
+    }
 }
 
 impl From<UpdateRecovery> for Expression {
@@ -35,12 +39,22 @@ impl TryFrom<Expression> for UpdateRecovery {
     type Error = Error;
 
     fn try_from(expression: Expression) -> Result<Self> {
-        let recovery_object =
-            expression.object_for_parameter(RECOVERY_METHOD_PARAM)?;
+        let recovery_object = expression
+            .object_for_parameter(RECOVERY_METHOD_PARAM)
+            .map_err(|_e| Error::MissingParameter {
+                parameter: RECOVERY_METHOD_PARAM_NAME.to_string(),
+            })?;
         let recovery = if recovery_object.is_null() {
             None
         } else {
-            Some(recovery_object.extract_subject()?)
+            Some(recovery_object.extract_subject().map_err(|e| {
+                Error::InvalidEnvelope {
+                    message: format!(
+                        "failed to extract recovery method: {}",
+                        e
+                    ),
+                }
+            })?)
         };
         Ok(Self::new(recovery))
     }
