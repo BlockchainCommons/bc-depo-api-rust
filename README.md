@@ -24,6 +24,12 @@ information.
 
 ## Version History
 
+### 0.15.0 - September 16, 2025
+- Align to dependencies.
+- Migrate from anyhow to thiserror v2 for error handling.
+- Add comprehensive custom Error type with specific error variants.
+- Improve error handling throughout codebase with descriptive messages.
+
 ### 0.14.0 - July 3, 2025
 - Align to dependencies.
 - Improve code formatting and consistency.
