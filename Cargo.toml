@@ -22,12 +22,12 @@ categories = [
 ] # https://crates.io/category_slugs
 
 [dependencies]
-dcbor = { version = "^0.23.0", features = ["multithreaded"] }
-bc-ur = "^0.13.0"
-bc-components = "^0.25.0"
-bc-envelope = { version = "^0.34.0", features = ["multithreaded"] }
-bc-xid = "^0.13.0"
-gstp = "^0.10.0"
+dcbor = { version = "^0.23.3", features = ["multithreaded"] }
+bc-ur = "^0.16.0"
+bc-components = "^0.28.0"
+bc-envelope = { version = "^0.37.0", features = ["multithreaded"] }
+bc-xid = "^0.16.0"
+gstp = "^0.11.0"
 
 thiserror = "^2.0"
 hex = "^0.4.3"
@@ -35,7 +35,7 @@ hex = "^0.4.3"
 [dev-dependencies]
 indoc = "^2.0.4"
 hex-literal = "^0.4.1"
-bc-rand = "^0.4.0"
+bc-rand = "^0.4.2"
 
 [features]
 multithreaded = ["dcbor/multithreaded", "bc-envelope/multithreaded"]

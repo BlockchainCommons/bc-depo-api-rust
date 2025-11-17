@@ -80,7 +80,7 @@ mod tests {
         assert_eq!(request_envelope.format(), indoc! {r#"
             «"updateXIDDocument"» [
                 ❰"newXIDDocument"❱: XID(71274df1) [
-                    'key': PublicKeys(eb9b1cae) [
+                    'key': PublicKeys(eb9b1cae, SigningPublicKey(SchnorrPublicKey(9022010e)), EncapsulationPublicKey(X25519PublicKey(b4f7059a))) [
                         'allow': 'All'
                     ]
                 ]
