@@ -22,14 +22,13 @@ impl std::ops::Deref for Receipt {
 
 impl std::fmt::Debug for Receipt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Receipt({})", hex::encode(&self.0))
+        write!(f, "Receipt({})", hex::encode(self.0))
     }
 }
 
 impl From<Receipt> for Envelope {
     fn from(receipt: Receipt) -> Self {
-        Envelope::new(CBOR::to_byte_string(receipt.0.clone()))
-            .add_type(RECEIPT_TYPE)
+        Envelope::new(CBOR::to_byte_string(receipt.0)).add_type(RECEIPT_TYPE)
     }
 }
 
@@ -37,12 +36,12 @@ impl TryFrom<Envelope> for Receipt {
     type Error = Error;
 
     fn try_from(envelope: Envelope) -> Result<Self> {
-        envelope.check_type_envelope(RECEIPT_TYPE).map_err(|e| {
-            Error::TypeMismatch {
+        envelope
+            .check_type(RECEIPT_TYPE)
+            .map_err(|e| Error::TypeMismatch {
                 expected: RECEIPT_TYPE.to_string(),
                 found: format!("envelope without type or wrong type: {}", e),
-            }
-        })?;
+            })?;
         let bytes: ByteString =
             envelope
                 .extract_subject()
