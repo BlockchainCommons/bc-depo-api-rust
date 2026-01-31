@@ -25,8 +25,8 @@ categories = [
 dcbor = { version = "^0.25.0", features = ["multithreaded"] }
 bc-ur = "^0.19.0"
 bc-components = "^0.31.0"
-bc-envelope = { version = "^0.41.0", features = ["multithreaded"] }
-bc-xid = "^0.20.0"
+bc-envelope = { version = "^0.41.1", features = ["multithreaded"] }
+bc-xid = "^0.20.1"
 gstp = "^0.13.0"
 
 thiserror = "^2.0"
